@@ -1,0 +1,735 @@
+app_id,app_category
+APP-1001,Lifestyle
+APP-1002,Finance
+APP-1003,Food & Drink
+APP-1004,Health & Fitness
+APP-1005,Weather
+APP-1006,Travel
+APP-1007,Music
+APP-1008,Music
+APP-1009,News
+APP-1010,Productivity
+APP-1011,Shopping
+APP-1012,Food & Drink
+APP-1013,Health & Fitness
+APP-1014,Entertainment
+APP-1015,Sports
+APP-1016,Education
+APP-1017,Weather
+APP-1018,Education
+APP-1019,Lifestyle
+APP-1020,Sports
+APP-1021,Education
+APP-1022,Education
+APP-1023,Business
+APP-1024,Education
+APP-1025,Productivity
+APP-1026,News
+APP-1027,Lifestyle
+APP-1028,Shopping
+APP-1029,Sports
+APP-1030,Education
+APP-1031,Education
+APP-1032,Shopping
+APP-1033,Photo & Video
+APP-1034,Utilities
+APP-1035,Food & Drink
+APP-1036,Shopping
+APP-1037,Business
+APP-1038,Social
+APP-1039,Productivity
+APP-1040,Lifestyle
+APP-1041,Shopping
+APP-1042,Entertainment
+APP-1043,Utilities
+APP-1044,Utilities
+APP-1045,Education
+APP-1046,Sports
+APP-1047,Productivity
+APP-1048,Education
+APP-1049,Travel
+APP-1050,Food & Drink
+APP-1051,Food & Drink
+APP-1052,Lifestyle
+APP-1053,Music
+APP-1054,News
+APP-1055,News
+APP-1056,Lifestyle
+APP-1057,News
+APP-1058,Sports
+APP-1059,Health & Fitness
+APP-1060,Education
+APP-1061,News
+APP-1062,Productivity
+APP-1063,Music
+APP-1064,Utilities
+APP-1065,Photo & Video
+APP-1066,Productivity
+APP-1067,Lifestyle
+APP-1068,Food & Drink
+APP-1069,Music
+APP-1070,Games
+APP-1071,Business
+APP-1072,Health & Fitness
+APP-1073,Entertainment
+APP-1074,Photo & Video
+APP-1075,Travel
+APP-1076,Education
+APP-1077,Entertainment
+APP-1078,Sports
+APP-1079,Food & Drink
+APP-1080,Photo & Video
+APP-1081,Music
+APP-1082,Social
+APP-1083,Utilities
+APP-1084,Weather
+APP-1085,Music
+APP-1086,News
+APP-1087,Sports
+APP-1088,Social
+APP-1089,Photo & Video
+APP-1090,Shopping
+APP-1091,Lifestyle
+APP-1092,Travel
+APP-1093,Shopping
+APP-1094,Food & Drink
+APP-1095,Health & Fitness
+APP-1096,Productivity
+APP-1097,Finance
+APP-1098,Shopping
+APP-1099,Photo & Video
+APP-1100,Business
+APP-1101,Lifestyle
+APP-1102,Weather
+APP-1103,Food & Drink
+APP-1104,Photo & Video
+APP-1105,Travel
+APP-1106,Food & Drink
+APP-1107,News
+APP-1108,Social
+APP-1109,Food & Drink
+APP-1110,Weather
+APP-1111,Food & Drink
+APP-1112,Business
+APP-1113,Shopping
+APP-1114,Utilities
+APP-1115,Social
+APP-1116,Games
+APP-1117,Food & Drink
+APP-1118,Weather
+APP-1119,Health & Fitness
+APP-1120,Productivity
+APP-1121,Education
+APP-1122,Health & Fitness
+APP-1123,Photo & Video
+APP-1124,News
+APP-1125,Health & Fitness
+APP-1126,Lifestyle
+APP-1127,Photo & Video
+APP-1128,Education
+APP-1129,Food & Drink
+APP-1130,Lifestyle
+APP-1131,Education
+APP-1132,Utilities
+APP-1133,Health & Fitness
+APP-1134,Business
+APP-1135,Lifestyle
+APP-1136,Sports
+APP-1137,Social
+APP-1138,Finance
+APP-1139,Education
+APP-1140,Photo & Video
+APP-1141,Lifestyle
+APP-1142,Finance
+APP-1143,Games
+APP-1144,Social
+APP-1145,Sports
+APP-1146,News
+APP-1147,Games
+APP-1148,Lifestyle
+APP-1149,Music
+APP-1150,Travel
+APP-1151,Lifestyle
+APP-1152,Food & Drink
+APP-1153,Health & Fitness
+APP-1154,Business
+APP-1155,Weather
+APP-1156,Social
+APP-1157,Entertainment
+APP-1158,Lifestyle
+APP-1159,Finance
+APP-1160,Health & Fitness
+APP-1161,News
+APP-1162,Entertainment
+APP-1163,Travel
+APP-1164,Utilities
+APP-1165,Productivity
+APP-1166,Sports
+APP-1167,Social
+APP-1168,Business
+APP-1169,Health & Fitness
+APP-1170,Health & Fitness
+APP-1171,Productivity
+APP-1172,Health & Fitness
+APP-1173,Travel
+APP-1174,Sports
+APP-1175,Shopping
+APP-1176,Education
+APP-1177,Entertainment
+APP-1178,Sports
+APP-1179,Social
+APP-1180,Utilities
+APP-1181,Food & Drink
+APP-1182,Social
+APP-1183,Sports
+APP-1184,Music
+APP-1185,Lifestyle
+APP-1186,Travel
+APP-1187,Music
+APP-1188,Food & Drink
+APP-1189,Business
+APP-1190,Weather
+APP-1191,Photo & Video
+APP-1192,Sports
+APP-1193,Social
+APP-1194,Utilities
+APP-1195,Finance
+APP-1196,Weather
+APP-1197,Weather
+APP-1198,Productivity
+APP-1199,Entertainment
+APP-1200,Food & Drink
+APP-1201,Lifestyle
+APP-1202,Business
+APP-1203,Music
+APP-1204,Education
+APP-1205,Food & Drink
+APP-1206,Lifestyle
+APP-1207,Business
+APP-1208,Entertainment
+APP-1209,Games
+APP-1210,News
+APP-1211,Utilities
+APP-1212,Food & Drink
+APP-1213,Shopping
+APP-1214,Productivity
+APP-1215,Food & Drink
+APP-1216,Lifestyle
+APP-1217,Health & Fitness
+APP-1218,Finance
+APP-1219,Business
+APP-1220,Social
+APP-1221,Utilities
+APP-1222,Shopping
+APP-1223,Weather
+APP-1224,Productivity
+APP-1225,Health & Fitness
+APP-1226,Social
+APP-1227,Photo & Video
+APP-1228,Business
+APP-1229,Lifestyle
+APP-1230,Games
+APP-1231,Lifestyle
+APP-1232,Food & Drink
+APP-1233,Health & Fitness
+APP-1234,Shopping
+APP-1235,Weather
+APP-1236,Utilities
+APP-1237,Finance
+APP-1238,Lifestyle
+APP-1239,Social
+APP-1240,Utilities
+APP-1241,Photo & Video
+APP-1242,Sports
+APP-1243,Sports
+APP-1244,Social
+APP-1245,Utilities
+APP-1246,Education
+APP-1247,Productivity
+APP-1248,Music
+APP-1249,Productivity
+APP-1250,Shopping
+APP-1251,Productivity
+APP-1252,Business
+APP-1253,Finance
+APP-1254,Entertainment
+APP-1255,Photo & Video
+APP-1256,News
+APP-1257,Finance
+APP-1258,Photo & Video
+APP-1259,Social
+APP-1260,Utilities
+APP-1261,Travel
+APP-1262,Finance
+APP-1263,Music
+APP-1264,Weather
+APP-1265,Music
+APP-1266,Health & Fitness
+APP-1267,Business
+APP-1268,Health & Fitness
+APP-1269,Business
+APP-1270,Social
+APP-1271,Photo & Video
+APP-1272,Food & Drink
+APP-1273,Travel
+APP-1274,Finance
+APP-1275,Health & Fitness
+APP-1276,Education
+APP-1277,Education
+APP-1278,Sports
+APP-1279,Photo & Video
+APP-1280,Weather
+APP-1281,Travel
+APP-1282,Food & Drink
+APP-1283,Photo & Video
+APP-1284,Music
+APP-1285,Business
+APP-1286,Music
+APP-1287,Utilities
+APP-1288,Travel
+APP-1289,Productivity
+APP-1290,Sports
+APP-1291,Sports
+APP-1292,Entertainment
+APP-1293,Games
+APP-1294,Health & Fitness
+APP-1295,Social
+APP-1296,Sports
+APP-1297,Photo & Video
+APP-1298,Travel
+APP-1299,Finance
+APP-1300,Education
+APP-1301,Health & Fitness
+APP-1302,Food & Drink
+APP-1303,Finance
+APP-1304,Entertainment
+APP-1305,Social
+APP-1306,Music
+APP-1307,Lifestyle
+APP-1308,Lifestyle
+APP-1309,Music
+APP-1310,Sports
+APP-1311,Music
+APP-1312,Entertainment
+APP-1313,Utilities
+APP-1314,Business
+APP-1315,Shopping
+APP-1316,Finance
+APP-1317,Social
+APP-1318,Productivity
+APP-1319,Weather
+APP-1320,Games
+APP-1321,Weather
+APP-1322,Sports
+APP-1323,Shopping
+APP-1324,Food & Drink
+APP-1325,Social
+APP-1326,Business
+APP-1327,Finance
+APP-1328,Education
+APP-1329,Lifestyle
+APP-1330,Health & Fitness
+APP-1331,Shopping
+APP-1332,Lifestyle
+APP-1333,Productivity
+APP-1334,Health & Fitness
+APP-1335,Music
+APP-1336,News
+APP-1337,Entertainment
+APP-1338,Shopping
+APP-1339,News
+APP-1340,Sports
+APP-1341,Shopping
+APP-1342,Travel
+APP-1343,Shopping
+APP-1344,Weather
+APP-1345,Entertainment
+APP-1346,Photo & Video
+APP-1347,Music
+APP-1348,Social
+APP-1349,Shopping
+APP-1350,Music
+APP-1351,Social
+APP-1352,Productivity
+APP-1353,Travel
+APP-1354,Education
+APP-1355,Shopping
+APP-1356,Photo & Video
+APP-1357,Travel
+APP-1358,Weather
+APP-1359,Shopping
+APP-1360,Finance
+APP-1361,Health & Fitness
+APP-1362,Music
+APP-1363,Weather
+APP-1364,Finance
+APP-1365,Photo & Video
+APP-1366,Social
+APP-1367,Shopping
+APP-1368,Entertainment
+APP-1369,Lifestyle
+APP-1370,Music
+APP-1371,Music
+APP-1372,Health & Fitness
+APP-1373,Business
+APP-1374,Education
+APP-1375,Photo & Video
+APP-1376,Productivity
+APP-1377,Photo & Video
+APP-1378,Finance
+APP-1379,Food & Drink
+APP-1380,Photo & Video
+APP-1381,Entertainment
+APP-1382,Business
+APP-1383,Music
+APP-1384,Weather
+APP-1385,Education
+APP-1386,Shopping
+APP-1387,Sports
+APP-1388,Productivity
+APP-1389,Sports
+APP-1390,Shopping
+APP-1391,Weather
+APP-1392,Business
+APP-1393,Shopping
+APP-1394,Weather
+APP-1395,Shopping
+APP-1396,Utilities
+APP-1397,Entertainment
+APP-1398,Lifestyle
+APP-1399,Games
+APP-1400,Sports
+APP-1401,Education
+APP-1402,Business
+APP-1403,Photo & Video
+APP-1404,Games
+APP-1405,Social
+APP-1406,Education
+APP-1407,Food & Drink
+APP-1408,Weather
+APP-1409,Productivity
+APP-1410,Games
+APP-1411,Utilities
+APP-1412,Business
+APP-1413,Productivity
+APP-1414,Sports
+APP-1415,Business
+APP-1416,Shopping
+APP-1417,Weather
+APP-1418,Social
+APP-1419,Business
+APP-1420,Sports
+APP-1421,Music
+APP-1422,Finance
+APP-1423,Shopping
+APP-1424,Music
+APP-1425,Business
+APP-1426,Photo & Video
+APP-1427,Travel
+APP-1428,Lifestyle
+APP-1429,Sports
+APP-1430,Weather
+APP-1431,Education
+APP-1432,Food & Drink
+APP-1433,Food & Drink
+APP-1434,Travel
+APP-1435,Photo & Video
+APP-1436,Education
+APP-1437,Shopping
+APP-1438,Education
+APP-1439,Health & Fitness
+APP-1440,Social
+APP-1441,Sports
+APP-1442,Entertainment
+APP-1443,Photo & Video
+APP-1444,Entertainment
+APP-1445,Weather
+APP-1446,Shopping
+APP-1447,Entertainment
+APP-1448,Education
+APP-1449,Finance
+APP-1450,Productivity
+APP-1451,Utilities
+APP-1452,Business
+APP-1453,Entertainment
+APP-1454,Photo & Video
+APP-1455,Education
+APP-1456,News
+APP-1457,Games
+APP-1458,Shopping
+APP-1459,Travel
+APP-1460,Lifestyle
+APP-1461,Productivity
+APP-1462,Entertainment
+APP-1463,Music
+APP-1464,Social
+APP-1465,Games
+APP-1466,Travel
+APP-1467,Lifestyle
+APP-1468,Business
+APP-1469,Sports
+APP-1470,Business
+APP-1471,Food & Drink
+APP-1472,Utilities
+APP-1473,Education
+APP-1474,Education
+APP-1475,Finance
+APP-1476,Education
+APP-1477,Entertainment
+APP-1478,Health & Fitness
+APP-1479,Business
+APP-1480,Lifestyle
+APP-1481,Food & Drink
+APP-1482,Travel
+APP-1483,Lifestyle
+APP-1484,Social
+APP-1485,Productivity
+APP-1486,Productivity
+APP-1487,Health & Fitness
+APP-1488,Games
+APP-1489,Music
+APP-1490,Travel
+APP-1491,Food & Drink
+APP-1492,Weather
+APP-1493,Business
+APP-1494,Sports
+APP-1495,Productivity
+APP-1496,Education
+APP-1497,Productivity
+APP-1498,Weather
+APP-1499,Education
+APP-1500,Shopping
+APP-1501,Education
+APP-1502,Productivity
+APP-1503,News
+APP-1504,Education
+APP-1505,Productivity
+APP-1506,News
+APP-1507,Music
+APP-1508,Utilities
+APP-1509,Shopping
+APP-1510,Utilities
+APP-1511,Music
+APP-1512,Sports
+APP-1513,Business
+APP-1514,Sports
+APP-1515,Finance
+APP-1516,Education
+APP-1517,Photo & Video
+APP-1518,Utilities
+APP-1519,Entertainment
+APP-1520,Photo & Video
+APP-1521,Lifestyle
+APP-1522,Weather
+APP-1523,Social
+APP-1524,News
+APP-1525,Sports
+APP-1526,Games
+APP-1527,Entertainment
+APP-1528,Music
+APP-1529,Lifestyle
+APP-1530,Photo & Video
+APP-1531,Lifestyle
+APP-1532,Food & Drink
+APP-1533,Photo & Video
+APP-1534,Education
+APP-1535,Lifestyle
+APP-1536,Business
+APP-1537,Lifestyle
+APP-1538,Games
+APP-1539,Business
+APP-1540,Food & Drink
+APP-1541,Travel
+APP-1542,Travel
+APP-1543,Health & Fitness
+APP-1544,Shopping
+APP-1545,Music
+APP-1546,Games
+APP-1547,Sports
+APP-1548,Lifestyle
+APP-1549,Entertainment
+APP-1550,Weather
+APP-1551,Entertainment
+APP-1552,Games
+APP-1553,Sports
+APP-1554,Business
+APP-1555,Lifestyle
+APP-1556,Weather
+APP-1557,Shopping
+APP-1558,Health & Fitness
+APP-1559,Travel
+APP-1560,Photo & Video
+APP-1561,Lifestyle
+APP-1562,Games
+APP-1563,Music
+APP-1564,Photo & Video
+APP-1565,Sports
+APP-1566,Food & Drink
+APP-1567,Entertainment
+APP-1568,Entertainment
+APP-1569,Games
+APP-1570,Music
+APP-1571,Music
+APP-1572,Productivity
+APP-1573,Games
+APP-1574,Productivity
+APP-1575,Education
+APP-1576,Productivity
+APP-1577,Entertainment
+APP-1578,Entertainment
+APP-1579,Business
+APP-1580,Sports
+APP-1581,Health & Fitness
+APP-1582,Finance
+APP-1583,Entertainment
+APP-1584,Games
+APP-1585,Business
+APP-1586,Weather
+APP-1587,Social
+APP-1588,Entertainment
+APP-1589,Productivity
+APP-1590,Business
+APP-1591,Shopping
+APP-1592,Weather
+APP-1593,Health & Fitness
+APP-1594,News
+APP-1595,Finance
+APP-1596,Games
+APP-1597,Music
+APP-1598,Entertainment
+APP-1599,Sports
+APP-1600,News
+APP-1601,Entertainment
+APP-1602,Finance
+APP-1603,Productivity
+APP-1604,Health & Fitness
+APP-1605,Weather
+APP-1606,Travel
+APP-1607,Health & Fitness
+APP-1608,Finance
+APP-1609,Utilities
+APP-1610,News
+APP-1611,Lifestyle
+APP-1612,Sports
+APP-1613,Weather
+APP-1614,Business
+APP-1615,Games
+APP-1616,News
+APP-1617,Photo & Video
+APP-1618,Shopping
+APP-1619,Shopping
+APP-1620,Utilities
+APP-1621,Social
+APP-1622,Sports
+APP-1623,Sports
+APP-1624,Social
+APP-1625,Lifestyle
+APP-1626,Music
+APP-1627,Weather
+APP-1628,Utilities
+APP-1629,Education
+APP-1630,Health & Fitness
+APP-1631,Social
+APP-1632,Entertainment
+APP-1633,Food & Drink
+APP-1634,Social
+APP-1635,Finance
+APP-1636,Finance
+APP-1637,Music
+APP-1638,Business
+APP-1639,Food & Drink
+APP-1640,Photo & Video
+APP-1641,Entertainment
+APP-1642,Health & Fitness
+APP-1643,Travel
+APP-1644,Health & Fitness
+APP-1645,Food & Drink
+APP-1646,Music
+APP-1647,Lifestyle
+APP-1648,Travel
+APP-1649,Education
+APP-1650,Sports
+APP-1651,News
+APP-1652,Lifestyle
+APP-1653,Weather
+APP-1654,Utilities
+APP-1655,Entertainment
+APP-1656,Food & Drink
+APP-1657,Music
+APP-1658,News
+APP-1659,Travel
+APP-1660,Shopping
+APP-1661,Business
+APP-1662,Travel
+APP-1663,Food & Drink
+APP-1664,Photo & Video
+APP-1665,Photo & Video
+APP-1666,Productivity
+APP-1667,Music
+APP-1668,Finance
+APP-1669,News
+APP-1670,Social
+APP-1671,Finance
+APP-1672,Education
+APP-1673,News
+APP-1674,Sports
+APP-1675,Health & Fitness
+APP-1676,Lifestyle
+APP-1677,Finance
+APP-1678,Travel
+APP-1679,Games
+APP-1680,Health & Fitness
+APP-1681,Social
+APP-1682,Travel
+APP-1683,Business
+APP-1684,Health & Fitness
+APP-1685,Social
+APP-1686,Productivity
+APP-1687,Photo & Video
+APP-1688,Shopping
+APP-1689,Sports
+APP-1690,Utilities
+APP-1691,Utilities
+APP-1692,Weather
+APP-1693,Weather
+APP-1694,News
+APP-1695,Finance
+APP-1696,Utilities
+APP-1697,Health & Fitness
+APP-1698,Games
+APP-1699,News
+APP-1700,Education
+APP-1701,Photo & Video
+APP-1702,Business
+APP-1703,Games
+APP-1704,Entertainment
+APP-1705,Travel
+APP-1706,Shopping
+APP-1707,Lifestyle
+APP-1708,Education
+APP-1709,Entertainment
+APP-1710,Food & Drink
+APP-1711,Finance
+APP-1712,Business
+APP-1713,Weather
+APP-1714,Utilities
+APP-1715,Entertainment
+APP-1716,Travel
+APP-1717,Utilities
+APP-1718,Food & Drink
+APP-1719,Utilities
+APP-1720,Health & Fitness
+APP-1721,Sports
+APP-1722,Lifestyle
+APP-1723,Food & Drink
+APP-1724,Health & Fitness
+APP-1725,Lifestyle
+APP-1726,Games
+APP-1727,Food & Drink
+APP-1728,Weather
+APP-1729,Productivity
+APP-1730,Games
+APP-1731,Travel
+APP-1732,Education
+APP-1733,Finance
+APP-1734,Sports

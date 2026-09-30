@@ -1,0 +1,12 @@
+# Local tooling
+.idea/
+.venv/
+__pycache__/
+.pytest_cache/
+
+# Private working material (brief, notes) — not part of the submission
+docs/
+
+# Build artefact; the CSV exports in output/ are committed so results are reviewable without running anything
+output/*.duckdb
+output/*.duckdb.wal
