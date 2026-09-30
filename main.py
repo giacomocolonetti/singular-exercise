@@ -31,9 +31,10 @@ MODELS: list[str] = [
     "intermediate/int_app_mmp",
     "intermediate/int_publisher_crm",
     "marts/golden_apps",
+    "marts/publisher_opportunities",
 ]
 
-EXPORTS: list[str] = ["golden_apps"]
+EXPORTS: list[str] = ["golden_apps", "publisher_opportunities"]
 
 
 def set_params(con: duckdb.DuckDBPyConnection) -> None:

@@ -20,6 +20,7 @@ business parameter lives in `PARAMS` in `main.py`.
 | Table | Grain (one line) |
 |---|---|
 | `golden_apps` | One row per app: identity, category, performance, MMP history and its publisher's CRM account. |
+| `publisher_opportunities` | One row per publisher with a live signal (recent switch or renewal in window), ranked for reps to work top-down. |
 
 Both marts are also exported to `output/*.csv`, so they open directly in a spreadsheet.
 
@@ -52,6 +53,34 @@ pivot. `publisher_active_arr` is therefore filled only on the publisher's top ap
 right answer under any filter, and the flag makes it explicit which row carries the value.
 Text attributes (owner, territory, account type) do repeat on every row, because they are
 never summed.
+
+### `publisher_opportunities`: the call list
+
+A rep works an account, not an app, so this table has **one row per publisher**, and it
+is built from `golden_apps` so both tables always show the same numbers. It holds 137
+publishers today. Deciding how to represent a multi-app publisher in one row:
+
+| Question | Decision | Why |
+|---|---|---|
+| Who is on the list? | Publishers with a recent switch **or** a renewal within 90 days, excluding publishers entirely on Singular | It's a work list, not a directory (`golden_apps` is the directory). A publisher fully on Singular is our customer, not a lead. |
+| Main MMP | The current MMP handling the **largest share of the publisher's downloads**, then the most apps, then the most recent adoption | An MMP attributes installs, so download volume is what it handles and what it bills on. App count alone would let three tiny apps outweigh the flagship. `mmp_mix` shows the full split, e.g. `Kochava 75% (1 app), Branch 25% (3 apps)`. |
+| Which renewal date | `next_renewal_date` = the **earliest** upcoming renewal across all the publisher's apps; `main_mmp_next_renewal_date` is kept alongside | Any open window gets a rep into the conversation. Winning one small app is how you land the account. |
+| Which switch | Any app switched within 180 days. The most recent one fills `switched_from` → `switched_to`, and `apps_switched_recently` counts them | One app moving is already a signal that the publisher is shopping. |
+| Ranking | `performance_score` = the average of the percentile ranks of downloads, users and revenue (each summed to the publisher first) | Percentiles put the three metrics on one scale, so one outlier can't dominate. Each metric's own rank is also a column, so a rep can re-sort. |
+
+**We are Singular, so the same signal means different things.** Each row gets exactly one
+`opportunity_type`, the most urgent first:
+
+| `opportunity_type` | Meaning | Who acts |
+|---|---|---|
+| `churned_from_singular` | An app recently moved **away from us** | Account manager: save it |
+| `competitor_renewal` | A competitor contract is renewing within 90 days | Sales: open window to win |
+| `switched_to_competitor` | Recently moved between competitors: evaluating, in motion | Sales |
+| `switched_to_singular` | Recently moved an app **to us**; its other apps are elsewhere | Sales: expand to the rest |
+| `singular_renewal` | Only our own apps are renewing | Customer success: retention |
+
+Publishers with **no CRM account** (28 on the list) and **Churned** accounts stay in: they are
+net-new and win-back leads. An empty `account_owner` (30 rows) is the routing queue for sales ops.
 
 ## Model layers
 
