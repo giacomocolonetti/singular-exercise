@@ -51,3 +51,31 @@ can never duplicate rows.
 | **Recently changed** | Switch within the last **180 days** | Six months in, a publisher is still judging the switch and is often still moving its other apps. After that, the next useful signal is the renewal, which the 90-day rule catches. |
 
 Both thresholds are parameters in `main.py`, and both are among the questions sent to the team.
+
+### Linking CRM accounts to publishers (`int_publisher_crm`, one row per publisher)
+
+The CRM and the product data share no key, so each CRM account is matched in two steps:
+
+1. **Normalised domain** (website ↔ `publisher_domain`): 216 publishers.
+2. **Normalised name** as a fallback, only for accounts that didn't match on domain (missing
+   website, or a typo such as `orbitd-ynamics.com`): 13 more publishers.
+
+`crm_match_method` (`domain` / `name` / `unmatched`) is kept as a column so users can see how
+each link was made. **71 publishers have no CRM account.** They stay in the tables with an
+empty owner: they are net-new leads, not errors.
+
+**No fuzzy matching.** Pointing a rep at the wrong account is worse than a missed match.
+Example: `Brightfin Holdings` (a Customer, $408k ARR) looks like publisher `Brightfin` but has
+its own domain. It may be a parent company or a different business, and guessing is not our
+call. Three such "Holdings" Customers hold **$1.1M ARR (8% of the total)** that cannot be
+linked to a publisher today. This is an open question sent to the team.
+
+**Duplicate CRM accounts** (7 publishers have two records, often with conflicting owners).
+Instead of picking one record whole, each field is resolved on its own:
+
+| Field | Rule | Why |
+|---|---|---|
+| `crm_id`, name, type, territory | Main record: never one a human already named "(duplicate)", then the highest status (Customer > Partner > Churned > Prospect), then the highest ARR, then the most recent activity | Keeps the record the business most likely treats as real |
+| `active_arr` | Max across the records | Same account entered twice: summing would double count |
+| `account_owner` | From the most recently worked record that has an owner | Petrel Studios: the $179k record has no owner, the other has Viktor Costa. Taking the whole record would leave a customer with no owner. |
+| `crm_duplicate_ids` | The other record ids | A ready-made merge list for RevOps |

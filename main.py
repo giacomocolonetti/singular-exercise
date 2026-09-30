@@ -29,6 +29,7 @@ MODELS: list[str] = [
     "staging/stg_app_category",
     "staging/stg_crm_accounts",
     "intermediate/int_app_mmp",
+    "intermediate/int_publisher_crm",
 ]
 
 EXPORTS: list[str] = []
