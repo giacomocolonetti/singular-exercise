@@ -209,3 +209,69 @@ just the code. Three kinds of tests:
   that catch a join that silently fans out.
 - **Business rules and known cases:** e.g. a single install is never a switch; APP-1001 moved
   AppsFlyer → Adjust on 2026-07-02; Petrel Studios keeps both its $179k ARR and its owner.
+- **Completeness:** the eligible publishers are recomputed independently from `golden_apps`,
+  and every one of them must be on the call list. A filter or join that quietly drops
+  publishers fails here, even though the output still "looks fine".
+
+**Catching a silent break in production:**
+
+- **Tests as a gate, not a report.** The same checks run inside `build_marts` *before* it
+  emits its assets. A table that fails a test never triggers the CRM sync, so bad data never
+  reaches reps.
+- **Run-over-run checks:** row counts, the matched-CRM share (76% today), the number of
+  publishers on the call list, and total ARR, each compared with the previous run and
+  alerting on large swings. A sudden drop in the match rate usually means the CRM changed how
+  it formats websites.
+- **Freshness:** alert if a source asset hasn't updated within its expected interval, so a
+  stalled ingestion doesn't leave reps working a stale list.
+- **CI:** the build and tests run on every pull request against the committed sample data.
+
+## Assumptions
+
+Where the brief was ambiguous, I decided and wrote it down here. The ones that change what a
+rep sees are also sent to the team as questions.
+
+- **We are Singular.** Singular is one of the MMPs in the data, so a Singular app is our
+  customer, not a competitor's.
+- **The latest install is the current MMP.** There is no uninstall date. Two installs = a
+  switch, not two MMPs running in parallel.
+- **Contracts start on the install date** of the current MMP and renew on its anniversary.
+- **Performance figures are comparable across apps and platforms** (same period), so they
+  can be summed across iOS and Android and across a publisher's apps.
+- **The CRM website identifies the company** and matches `publisher_domain`. The name is
+  only a fallback.
+- **Duplicate CRM accounts are the same company entered twice**, so ARR is the max, never
+  the sum.
+- **A publisher fully on Singular is not a lead.** It is left off the call list but stays in
+  `golden_apps`.
+- **"Today" is 2026-09-14**, and a renewal falling exactly on today is still in the window.
+
+### Open questions sent to the team (2026-09-30)
+
+1. Is 90 days the right renewal window for the real sales cycle?
+2. Is 180 days the right definition of "recently switched"?
+3. Does sales prefer one metric (e.g. revenue) over the combined performance score?
+4. Is there an existing rule for which duplicate CRM account is the real one?
+5. Are the "X Holdings" accounts parent companies of publisher "X"? (Three Customers, $1.1M ARR.)
+6. Do publishers ever run two MMPs on the same app in parallel?
+
+Each answer is a one-line change: a parameter in `main.py` or a single rule in one SQL file.
+
+## What I'd do next
+
+- **dbt.** Move the models to dbt: tests become declarations next to each model, and lineage
+  comes for free. Most importantly for the company, dbt generates a **documentation site we
+  can self-host**, listing every table and column with its description, grain, tests and
+  lineage. Anyone in sales ops, RevOps or finance can then find what a column means without
+  asking an engineer. That's what makes self-service analytics real, not just possible.
+- **A CRM-hygiene table for RevOps:** the 21 CRM accounts that match no publisher (Holdings
+  accounts, `.example` domains), the 7 duplicate merge lists, and the 11 matched accounts
+  with no owner. Today it's a manual clean-up nobody owns.
+- **A whitespace list:** the 71 publishers with no CRM account, ranked the same way. That is
+  a prospecting list for net-new business.
+- **Daily snapshots of the call list**, so we can measure which signals actually turn into
+  won deals, and tune the 90/180-day thresholds and the ranking with data instead of intuition.
+- **Parent/child accounts** in the golden table if the team confirms the Holdings structure.
+- **At scale:** incremental models and Iceberg `MERGE` for the lake tables. Wire the real CRM
+  client, the `crm_sync_state` table and the field-history guard into the DAG, and add a
+  `build_marts` DAG that runs the tests as a gate.
