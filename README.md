@@ -39,3 +39,15 @@ can never duplicate rows.
 - **`sdk_installs.mmp_installed` is dropped.** It is the global install count of that MMP
   repeated on every row (336 on every AppsFlyer row), not a per-app fact, so summing it gives
   nonsense.
+
+### MMP history, switches and renewals (`int_app_mmp`, one row per app)
+
+| Concept | Rule | Why |
+|---|---|---|
+| Current MMP | The app's most recent install | There is no uninstall date. 108 apps have two installs and we assume the newer one replaced the older. |
+| Switch | The app has ≥ 2 installs; switch date = latest install | An app's first-ever install is a new integration, not a lost or won deal. |
+| Next renewal | Next yearly anniversary of the current install, on or after today (and never the install day itself) | Contracts run 12 months and auto-renew. 29 Feb installs renew on 28 Feb. |
+| **Approaching renewal** | Renewal within **90 days** | Enough time to reach out, run a trial and close before the auto-renewal locks the publisher in for another year. |
+| **Recently changed** | Switch within the last **180 days** | Six months in, a publisher is still judging the switch and is often still moving its other apps. After that, the next useful signal is the renewal, which the 90-day rule catches. |
+
+Both thresholds are parameters in `main.py`, and both are among the questions sent to the team.

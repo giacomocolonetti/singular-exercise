@@ -17,6 +17,8 @@ DB_PATH = OUTPUT_DIR / "warehouse.duckdb"
 # Business parameters live in one place so a changed threshold is a one-line diff.
 PARAMS = {
     "as_of_date": "2026-09-14",  # "today" per the brief, for reproducible results
+    "renewal_window_days": 90,  # renewal this close = reachable before the auto-renewal locks in
+    "recent_switch_days": 180,  # switch this recent = publisher still judging its new MMP
 }
 
 # Dependency order: staging -> intermediate -> marts.
@@ -26,6 +28,7 @@ MODELS: list[str] = [
     "staging/stg_app_performance",
     "staging/stg_app_category",
     "staging/stg_crm_accounts",
+    "intermediate/int_app_mmp",
 ]
 
 EXPORTS: list[str] = []
