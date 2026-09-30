@@ -15,6 +15,44 @@ uv run pytest    # data tests: grain, reconciliation, business rules
 "Today" is fixed at **2026-09-14** (as the brief asks) so results are reproducible; every
 business parameter lives in `PARAMS` in `main.py`.
 
+## The tables
+
+| Table | Grain (one line) |
+|---|---|
+| `golden_apps` | One row per app: identity, category, performance, MMP history and its publisher's CRM account. |
+
+Both marts are also exported to `output/*.csv`, so they open directly in a spreadsheet.
+
+### `golden_apps`: why one row per app
+
+One flat table with no joins needed: filter and aggregate it like a spreadsheet. The hard part
+is choosing a grain where **every number can be summed under any filter without double
+counting**.
+
+An app has two independent child lists: performance per platform (iOS/Android) and MMP
+installs over time. Any grain below the app that includes both multiplies rows. For example,
+app × platform × MMP counts revenue twice for the 108 apps with two MMPs, and nothing in the
+table warns you. So:
+
+| Option | Rows | Verdict |
+|---|---|---|
+| **App** (chosen) | 734 | Every measure adds up. Platform detail kept as `ios_*` / `android_*` columns; MMP history as `current_*` / `previous_*` columns plus a readable `mmp_history`. |
+| App × platform | 1,395 | Measures still add up, but "how many apps are on Adjust" needs `COUNT DISTINCT`. A spreadsheet user would get it wrong. |
+| App × MMP install | 842 | Double counts performance. Rejected. |
+
+**Pros:** easy to count (one row = one app); safe to sum; still drills down to platform level.
+**Cons:** MMP history is limited to current + previous as columns. That covers all the data
+today (max two installs per app), and `mmp_count` / `mmp_history` show when an app has more.
+A per-platform time series would need its own table.
+
+**Publisher ARR is the one number that can't be copied onto every row.** It belongs to the
+account, not the app, so repeating it would count a 6-app publisher's ARR six times in any
+pivot. `publisher_active_arr` is therefore filled only on the publisher's top app by revenue
+(`is_publisher_primary_row = true`) and is empty on its other apps. A plain `SUM` gives the
+right answer under any filter, and the flag makes it explicit which row carries the value.
+Text attributes (owner, territory, account type) do repeat on every row, because they are
+never summed.
+
 ## Model layers
 
 ```
