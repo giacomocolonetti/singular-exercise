@@ -42,7 +42,7 @@ def set_params(con: duckdb.DuckDBPyConnection) -> None:
     con.execute("SET VARIABLE as_of_date = CAST(getvariable('as_of_date') AS DATE)")
 
 
-def build(db_path: Path = DB_PATH) -> duckdb.DuckDBPyConnection:
+def build(db_path: Path = DB_PATH, export: bool = True) -> duckdb.DuckDBPyConnection:
     db_path.parent.mkdir(exist_ok=True)
     con = duckdb.connect(str(db_path))
     con.execute(f"SET file_search_path = '{ROOT / 'data'}'")  # read_csv('x.csv') resolves to data/x.csv
@@ -53,7 +53,7 @@ def build(db_path: Path = DB_PATH) -> duckdb.DuckDBPyConnection:
         table = Path(model).name
         con.execute(f"CREATE OR REPLACE TABLE {table} AS\n{query}")
         print(f"built {table:<32} {con.table(table).count('*').fetchone()[0]:>5} rows")
-    for table in EXPORTS:
+    for table in EXPORTS if export else []:
         con.execute(f"COPY {table} TO '{OUTPUT_DIR / table}.csv' (HEADER)")
     return con
 

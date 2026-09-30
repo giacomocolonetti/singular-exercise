@@ -117,3 +117,15 @@ Instead of picking one record whole, each field is resolved on its own:
 | `active_arr` | Max across the records | Same account entered twice: summing would double count |
 | `account_owner` | From the most recently worked record that has an owner | Petrel Studios: the $179k record has no owner, the other has Viktor Costa. Taking the whole record would leave a customer with no owner. |
 | `crm_duplicate_ids` | The other record ids | A ready-made merge list for RevOps |
+
+## Testing
+
+`uv run pytest` builds a fresh warehouse in a temp directory and checks the data itself, not
+just the code. Three kinds of tests:
+
+- **Grain:** the table's key is unique, and no row is lost or invented relative to the source.
+- **Reconciliation:** totals equal the source exactly (downloads, users, revenue, ARR), per-platform
+  columns add up to the totals, and ARR sits on exactly one row per publisher. These are the tests
+  that catch a join that silently fans out.
+- **Business rules and known cases:** e.g. a single install is never a switch; APP-1001 moved
+  AppsFlyer → Adjust on 2026-07-02; Petrel Studios keeps both its $179k ARR and its owner.
