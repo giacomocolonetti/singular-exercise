@@ -16,12 +16,17 @@ DB_PATH = OUTPUT_DIR / "warehouse.duckdb"
 
 # Business parameters live in one place so a changed threshold is a one-line diff.
 PARAMS = {
-    "data_dir": str(ROOT / "data"),
     "as_of_date": "2026-09-14",  # "today" per the brief, for reproducible results
 }
 
 # Dependency order: staging -> intermediate -> marts.
-MODELS: list[str] = []
+MODELS: list[str] = [
+    "staging/stg_app_identification",
+    "staging/stg_sdk_installs",
+    "staging/stg_app_performance",
+    "staging/stg_app_category",
+    "staging/stg_crm_accounts",
+]
 
 EXPORTS: list[str] = []
 
@@ -35,7 +40,9 @@ def set_params(con: duckdb.DuckDBPyConnection) -> None:
 def build(db_path: Path = DB_PATH) -> duckdb.DuckDBPyConnection:
     db_path.parent.mkdir(exist_ok=True)
     con = duckdb.connect(str(db_path))
+    con.execute(f"SET file_search_path = '{ROOT / 'data'}'")  # read_csv('x.csv') resolves to data/x.csv
     set_params(con)
+    con.execute((SQL_DIR / "macros.sql").read_text())
     for model in MODELS:
         query = (SQL_DIR / f"{model}.sql").read_text()
         table = Path(model).name
