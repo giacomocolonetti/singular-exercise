@@ -147,6 +147,57 @@ Instead of picking one record whole, each field is resolved on its own:
 | `account_owner` | From the most recently worked record that has an owner | Petrel Studios: the $179k record has no owner, the other has Viktor Costa. Taking the whole record would leave a customer with no owner. |
 | `crm_duplicate_ids` | The other record ids | A ready-made merge list for RevOps |
 
+## Airflow: CRM sync (`dags/crm_sync.py`)
+
+A skeleton for Airflow 3; the CRM and warehouse connections are placeholders.
+
+```
+ingestion DAGs ──asset──▶ build_marts ──asset──▶ crm_sync:  build_payload ─▶ diff_against_sync_state ─▶ chunk ─▶ push_batch ×N
+```
+
+**What triggers a sync, and at what grain.** Data-aware scheduling with Airflow **Assets**.
+Each ingestion DAG declares its raw table as an outlet. `build_marts` is scheduled on those
+assets and emits `golden_apps` / `publisher_opportunities`, and `crm_sync` runs when both
+marts are updated. No cron guessing: the sync runs because the data changed, and only after
+the build succeeded. The grain is **one CRM account (`crm_id`) per record**, because the CRM
+account is what a rep works. The payload covers *every* matched account, not only those on
+today's call list: when a publisher leaves the list, its CRM fields must be cleared, or the
+CRM keeps showing an expired "renewal approaching".
+
+**How retries avoid duplicates.** Two layers:
+1. *The CRM write is an update by `crm_id`, never an insert.* Sending the same record twice
+   writes the same values twice, which is harmless. The sync never creates accounts (the 71
+   unmatched publishers reach sales ops through the marts instead), so it cannot create
+   duplicate accounts.
+2. *`ops.crm_sync_state`* holds one row per CRM account (about 230 rows, not a copy of the
+   data) with the hash of the last payload pushed. Only records whose hash changed get
+   sent. This saves CRM API quota and avoids touching `LastModifiedDate` for nothing. It is
+   also the only way to catch changes that come from **time passing** (a renewal window
+   opening) rather than from new source rows.
+
+Why not a high watermark on the sources, the usual pattern for *ingestion*? It is right
+there (paginate by `updated_at`, oldest first, and store the watermark per table, so a broken
+run resumes where it stopped), and that is how the upstream ingestion DAGs should work. It
+doesn't fit this step: the sources are full snapshots with no `updated_at`, and our outputs
+change as dates move even when no source row does. Similarly, Iceberg `MERGE` gives
+idempotent writes *inside the lake*, but the duplicate risk here is on the CRM side. At
+this size, rebuilding the marts from scratch (`CREATE OR REPLACE`) is already idempotent.
+
+**What happens if the run fails halfway.** The push is split into **mapped tasks, one per
+batch** of 200 accounts. Each batch is all-or-none in the CRM, and only after the CRM accepts
+it does the batch write its rows to `crm_sync_state`. If batch 4 of 6 fails, Airflow retries
+only batch 4. A later full re-run skips batches 1–3 because their hashes already match. A
+task that is retried once and fails again triggers `on_failure_callback`, which alerts the
+data engineering team (Slack/pager) with a link to the logs. `max_active_runs=1` prevents
+two runs from racing.
+
+**How we avoid overwriting a rep's manual edits.** Product facts and rep judgement live in
+**separate fields**. The sync writes only its own `Product_*__c` fields (`FIELD_MAP`), which
+are read-only for reps through field-level security. The fields reps own (owner, stage,
+notes) are never in the payload, so there is nothing to overwrite. If a field ever has to be
+shared, the fallback is to read the CRM field history before pushing, and skip and flag any
+field a person edited after our last push.
+
 ## Testing
 
 `uv run pytest` builds a fresh warehouse in a temp directory and checks the data itself, not
