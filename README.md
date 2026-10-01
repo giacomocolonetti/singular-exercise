@@ -17,12 +17,27 @@ business parameter lives in `PARAMS` in `main.py`.
 
 ## The tables
 
+The two tables people query (marts):
+
 | Table | Grain (one line) |
 |---|---|
-| `golden_apps` | One row per app: identity, category, performance, MMP history and its publisher's CRM account. |
+| `golden_apps` | One row per app: identity, category, performance, MMP history, its publisher's main MMP and CRM account. |
 | `publisher_opportunities` | One row per publisher with a live signal (recent switch or renewal in window), ranked for reps to work top-down. |
 
 Both marts are also exported to `output/*.csv`, so they open directly in a spreadsheet.
+
+The building blocks behind them:
+
+| Table | Grain (one line) |
+|---|---|
+| `stg_app_identification` | One row per app, with its publisher and cleaned domain/name join keys. |
+| `stg_sdk_installs` | One row per app × MMP install (an app can have several over time). |
+| `stg_app_performance` | One row per app × platform (iOS / Android). |
+| `stg_app_category` | One row per app. |
+| `stg_crm_accounts` | One row per CRM account (not per company: duplicates exist here). |
+| `int_app_mmp` | One row per app: current/previous MMP, switch and next renewal. |
+| `int_publisher_crm` | One row per publisher: its matched CRM account, duplicates merged (empty if unmatched). |
+| `int_publisher_mmp` | One row per publisher: main MMP and MMP mix. |
 
 ### `golden_apps`: why one row per app
 
@@ -258,7 +273,7 @@ rep sees are also sent to the team as questions.
 
 Each answer is a one-line change: a parameter in `main.py` or a single rule in one SQL file.
 
-## What I'd do next
+## What I'd do differently with more time
 
 - **dbt.** Move the models to dbt: tests become declarations next to each model, and lineage
   comes for free. Most importantly for the company, dbt generates a **documentation site we
