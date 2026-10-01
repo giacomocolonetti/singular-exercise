@@ -2,35 +2,9 @@
 -- renewal inside the window. Publishers entirely on Singular are excluded (they are our
 -- customers, not leads). Ranked top-down by performance so a rep can work the list in order.
 --
--- Built from golden_apps, so every number here reconciles with the golden table.
-with mmp_per_publisher as (
-    select
-        publisher_id,
-        current_mmp,
-        sum(downloads)                   as downloads,
-        count(*)                         as app_count,
-        max(current_mmp_install_date)    as latest_install,
-        round(100 * sum(downloads) / sum(sum(downloads)) over (partition by publisher_id)) as downloads_share_pct
-    from golden_apps
-    group by publisher_id, current_mmp
-),
-
-main_mmp as (
-    select
-        publisher_id,
-        -- main MMP = the one handling the most download volume (an MMP attributes installs),
-        -- then the one on the most apps, then the most recently adopted
-        arg_max(current_mmp, (downloads, app_count, latest_install)) as main_mmp,
-        -- e.g. 'Kochava 62% (1 app), Branch 38% (3 apps)': share of the publisher's downloads
-        string_agg(
-            current_mmp || ' ' || downloads_share_pct::int || '% (' || app_count || if(app_count = 1, ' app)', ' apps)'),
-            ', ' order by downloads desc)                                          as mmp_mix,
-        count(*)                                                                   as current_mmp_count
-    from mmp_per_publisher
-    group by publisher_id
-),
-
-latest_switch as (
+-- Built from golden_apps, so every number here reconciles with the golden table. The main
+-- MMP rule lives in int_publisher_mmp, shared with golden_apps.
+with latest_switch as (
     select
         publisher_id,
         max(switch_date)                                        as last_switch_date,
@@ -96,14 +70,14 @@ signals as (
             when r.singular_apps_renewing > 0       then 'singular_renewal'        -- retention, customer success
         end as opportunity_type
     from rollup as r
-    join main_mmp as m using (publisher_id)
+    join int_publisher_mmp as m using (publisher_id)
     left join latest_switch as s using (publisher_id)
 ),
 
 main_mmp_renewal as (
     select g.publisher_id, min(g.next_renewal_date) as main_mmp_next_renewal_date
     from golden_apps as g
-    join main_mmp as m on m.publisher_id = g.publisher_id and m.main_mmp = g.current_mmp
+    join int_publisher_mmp as m on m.publisher_id = g.publisher_id and m.main_mmp = g.current_mmp
     group by g.publisher_id
 ),
 

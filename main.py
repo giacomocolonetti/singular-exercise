@@ -30,6 +30,7 @@ MODELS: list[str] = [
     "staging/stg_crm_accounts",
     "intermediate/int_app_mmp",
     "intermediate/int_publisher_crm",
+    "intermediate/int_publisher_mmp",
     "marts/golden_apps",
     "marts/publisher_opportunities",
 ]

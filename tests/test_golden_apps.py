@@ -96,6 +96,25 @@ def test_single_install_is_never_a_switch(scalar):
     assert scalar("select count(*) from golden_apps where mmp_count = 1 and has_switched_mmp") == 0
 
 
+def test_every_publisher_has_one_main_mmp_it_actually_uses(scalar):
+    assert scalar("""
+        select count(*) from (
+            select publisher_id from golden_apps
+            group by publisher_id
+            having count(distinct publisher_main_mmp) <> 1
+                or not bool_or(current_mmp = publisher_main_mmp)
+        )
+    """) == 0
+
+
+def test_main_mmp_agrees_across_tables(scalar):
+    assert scalar("""
+        select count(*) from publisher_opportunities as p
+        join (select distinct publisher_id, publisher_main_mmp from golden_apps) as g using (publisher_id)
+        where p.main_mmp <> g.publisher_main_mmp
+    """) == 0
+
+
 # --- known cases, checked by hand against the CSVs -------------------------------------
 
 def test_known_switch(con):

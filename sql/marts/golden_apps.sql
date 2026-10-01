@@ -64,6 +64,7 @@ select
     a.android_revenue,
 
     -- MMP
+    pm.main_mmp                     as publisher_main_mmp,  -- the publisher's main MMP (rule in int_publisher_mmp)
     m.current_mmp,
     m.current_mmp_install_date,
     m.is_on_singular,
@@ -94,4 +95,5 @@ select
 from apps as a
 left join int_app_mmp as m using (app_id)
 left join int_publisher_crm as c using (publisher_id)
+left join int_publisher_mmp as pm using (publisher_id)
 order by a.publisher_id, a.app_id
