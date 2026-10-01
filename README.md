@@ -57,12 +57,12 @@ never summed.
 ### `publisher_opportunities`: the call list
 
 A rep works an account, not an app, so this table has **one row per publisher**, and it
-is built from `golden_apps` so both tables always show the same numbers. It holds 137
+is built from `golden_apps` so both tables always show the same numbers. It holds 138
 publishers today. Deciding how to represent a multi-app publisher in one row:
 
 | Question | Decision | Why |
 |---|---|---|
-| Who is on the list? | Publishers with a recent switch **or** a renewal within 90 days, excluding publishers entirely on Singular | It's a work list, not a directory (`golden_apps` is the directory). A publisher fully on Singular is our customer, not a lead. |
+| Who is on the list? | Publishers with a recent switch **or** a renewal within 90 days. A publisher entirely on Singular appears only when renewing, as `singular_renewal` | It's a work list, not a directory (`golden_apps` is the directory). A fully-Singular publisher has nothing left for sales to win, but its renewal is still worth knowing about: having the information and not using it beats not having it. Each team filters on `opportunity_type`. |
 | Main MMP | The current MMP handling the **largest share of the publisher's downloads**, then the most apps, then the most recent adoption | An MMP attributes installs, so download volume is what it handles and what it bills on. App count alone would let three tiny apps outweigh the flagship. `mmp_mix` shows the full split, e.g. `Kochava 75% (1 app), Branch 25% (3 apps)`. The rule is defined once (`int_publisher_mmp`) and also exposed for every publisher as `golden_apps.publisher_main_mmp`. |
 | Which renewal date | `next_renewal_date` = the **earliest** upcoming renewal across all the publisher's apps; `main_mmp_next_renewal_date` is kept alongside | Any open window gets a rep into the conversation. Winning one small app is how you land the account. |
 | Which switch | Any app switched within 180 days. The most recent one fills `switched_from` → `switched_to`, and `apps_switched_recently` counts them | One app moving is already a signal that the publisher is shopping. |
@@ -77,7 +77,7 @@ publishers today. Deciding how to represent a multi-app publisher in one row:
 | `competitor_renewal` | A competitor contract is renewing within 90 days | Sales: open window to win |
 | `switched_to_competitor` | Recently moved between competitors: evaluating, in motion | Sales |
 | `switched_to_singular` | Recently moved an app **to us**; its other apps are elsewhere | Sales: expand to the rest |
-| `singular_renewal` | Only our own apps are renewing | Customer success: retention |
+| `singular_renewal` | Only our own apps are renewing (including publishers entirely on Singular) | Customer success: retention |
 
 Publishers with **no CRM account** (28 on the list) and **Churned** accounts stay in: they are
 net-new and win-back leads. An empty `account_owner` (30 rows) is the routing queue for sales ops.
@@ -242,8 +242,9 @@ rep sees are also sent to the team as questions.
   only a fallback.
 - **Duplicate CRM accounts are the same company entered twice**, so ARR is the max, never
   the sum.
-- **A publisher fully on Singular is not a lead.** It is left off the call list but stays in
-  `golden_apps`.
+- **A publisher fully on Singular is not a sales lead.** It appears on the call list only
+  when renewing, labelled `singular_renewal` for customer success, and the team decides
+  what to do with it.
 - **"Today" is 2026-09-14**, and a renewal falling exactly on today is still in the window.
 
 ### Open questions sent to the team (2026-09-30)

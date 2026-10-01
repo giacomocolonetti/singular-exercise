@@ -1,6 +1,7 @@
--- Grain: one row per publisher that has a live sales signal: a recent MMP switch, or a
--- renewal inside the window. Publishers entirely on Singular are excluded (they are our
--- customers, not leads). Ranked top-down by performance so a rep can work the list in order.
+-- Grain: one row per publisher that has a live signal: a recent MMP switch, or a renewal
+-- inside the window. Publishers entirely on Singular appear only when renewing (labelled
+-- 'singular_renewal', for customer success). Ranked top-down by performance so a rep can
+-- work the list in order.
 --
 -- Built from golden_apps, so every number here reconciles with the golden table. The main
 -- MMP rule lives in int_publisher_mmp, shared with golden_apps.
@@ -66,9 +67,12 @@ signals as (
             when r.apps_churned_from_singular > 0   then 'churned_from_singular'   -- lost an app: save it
             when r.competitor_apps_renewing > 0     then 'competitor_renewal'      -- open window to win
             when r.apps_switched_to_competitor > 0  then 'switched_to_competitor'  -- in motion, evaluating
-            when r.apps_switched_to_singular > 0    then 'switched_to_singular'    -- won an app: expand to the rest
+            when r.apps_switched_to_singular > 0
+             and r.singular_app_count < r.app_count then 'switched_to_singular'    -- won an app: expand to the rest
             when r.singular_apps_renewing > 0       then 'singular_renewal'        -- retention, customer success
         end as opportunity_type
+        -- A publisher fully on Singular can only get 'singular_renewal': nothing left to win,
+        -- but customer success should still see the renewal coming.
     from rollup as r
     join int_publisher_mmp as m using (publisher_id)
     left join latest_switch as s using (publisher_id)
@@ -93,7 +97,6 @@ scored as (
         rank() over (order by revenue desc)                      as revenue_rank
     from signals
     where opportunity_type is not null
-      and singular_app_count < app_count  -- fully on Singular = customer, not a lead
 )
 
 select

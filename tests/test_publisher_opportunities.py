@@ -15,8 +15,8 @@ def test_no_eligible_publisher_is_missing(scalar):
         select count(*) from (
             select publisher_id from golden_apps
             group by publisher_id
-            having (bool_or(is_recent_switch) or bool_or(is_in_renewal_window))
-               and not bool_and(is_on_singular)
+            having bool_or(is_in_renewal_window)
+                or (bool_or(is_recent_switch) and not bool_and(is_on_singular))
         ) as eligible
         anti join publisher_opportunities using (publisher_id)
     """) == 0
@@ -49,8 +49,12 @@ def test_every_row_has_a_signal_and_a_type(scalar):
     """) == 0
 
 
-def test_publishers_fully_on_singular_are_excluded(scalar):
-    assert scalar("select count(*) from publisher_opportunities where singular_app_count = app_count") == 0
+def test_publishers_fully_on_singular_appear_only_as_renewals(scalar):
+    assert scalar("""
+        select count(*) from publisher_opportunities
+        where singular_app_count = app_count
+          and (opportunity_type <> 'singular_renewal' or not is_approaching_renewal)
+    """) == 0
 
 
 def test_renewal_flag_matches_the_window(scalar):
