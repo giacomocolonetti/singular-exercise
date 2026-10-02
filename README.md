@@ -230,7 +230,7 @@ It also gives RevOps a list to resolve:
 
 | `crm_sdk_mismatch` | Meaning | Publishers |
 |---|---|---|
-| `customer_without_singular_sdk` | A paying customer with no app on our SDK | 42 |
+| `customer_without_singular_sdk` | A paying customer with no app on our SDK | 42 (39 linked + 3 probable accounts) |
 | `prospect_left_singular_sdk` | The CRM says Prospect, but an app replaced our SDK. Pitch them as a former user, not a stranger. | 6 |
 | `prospect_on_singular_sdk` | The CRM says Prospect, but they run our SDK today | 15 |
 | `churned_on_singular_sdk` | The CRM says Churned, but they still run our SDK | 4 |
@@ -286,7 +286,7 @@ and our outputs change with the date even when no source row changes.
 ## Testing
 
 `uv run pytest` rebuilds everything from scratch and checks the **data**, not just the code
-(37 tests):
+(40 tests):
 
 - **Grain:** an app or publisher never appears twice, and no row is lost.
 - **Totals match the source:** downloads, users, revenue and ARR add up to the same totals
