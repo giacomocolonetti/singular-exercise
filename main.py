@@ -3,8 +3,12 @@
 Each file in MODELS becomes a table named after the file, rebuilt from scratch on
 every run (CREATE OR REPLACE), so the build is idempotent: re-running it can never
 duplicate rows.
+
+    uv run main.py                      # as of 2026-09-14, the brief's fixed "today"
+    uv run main.py --as-of 2026-10-02   # as of another date (what the scheduled DAG does)
 """
 
+import argparse
 from pathlib import Path
 
 import duckdb
@@ -14,7 +18,7 @@ SQL_DIR = ROOT / "sql"
 OUTPUT_DIR = ROOT / "output"
 DB_PATH = OUTPUT_DIR / "warehouse.duckdb"
 
-# Business parameters live in one place so a changed threshold is a one-line diff.
+# Business parameters live in one place.
 PARAMS = {
     "as_of_date": "2026-09-14",  # "today" per the brief, for reproducible results
     "renewal_window_days": 90,  # renewal this close = reachable before the auto-renewal locks in
@@ -39,17 +43,19 @@ MODELS: list[str] = [
 EXPORTS: list[str] = ["golden_apps", "publisher_opportunities"]
 
 
-def set_params(con: duckdb.DuckDBPyConnection) -> None:
-    for name, value in PARAMS.items():
+def set_params(con: duckdb.DuckDBPyConnection, as_of: str | None = None) -> None:
+    for name, value in {**PARAMS, "as_of_date": as_of or PARAMS["as_of_date"]}.items():
         con.execute(f"SET VARIABLE {name} = ?", [value])
     con.execute("SET VARIABLE as_of_date = CAST(getvariable('as_of_date') AS DATE)")
 
 
-def build(db_path: Path = DB_PATH, export: bool = True) -> duckdb.DuckDBPyConnection:
+def build(
+    db_path: Path = DB_PATH, export: bool = True, as_of: str | None = None
+) -> duckdb.DuckDBPyConnection:
     db_path.parent.mkdir(exist_ok=True)
     con = duckdb.connect(str(db_path))
     con.execute(f"SET file_search_path = '{ROOT / 'data'}'")  # read_csv('x.csv') resolves to data/x.csv
-    set_params(con)
+    set_params(con, as_of)
     con.execute((SQL_DIR / "macros.sql").read_text())
     for model in MODELS:
         query = (SQL_DIR / f"{model}.sql").read_text()
@@ -62,4 +68,6 @@ def build(db_path: Path = DB_PATH, export: bool = True) -> duckdb.DuckDBPyConnec
 
 
 if __name__ == "__main__":
-    build().close()
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--as-of", help="date to treat as today (YYYY-MM-DD); default: the brief's 2026-09-14")
+    build(as_of=parser.parse_args().as_of).close()

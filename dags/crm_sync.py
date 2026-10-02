@@ -3,17 +3,29 @@
 Skeleton for Airflow 3 (not run here: Airflow is not a project dependency). Design
 rationale is in the README, section "CRM sync: Airflow".
 
-Flow:  ingestion DAGs ──(assets)──▶ build_marts DAG ──(assets)──▶ this DAG ──▶ CRM
+Flow:  ingestion ──(raw assets)──▶ mart build ──(mart assets)──▶ this DAG ──▶ CRM
 
     build_payload ─▶ diff_against_sync_state ─▶ chunk ─▶ push_batch (mapped, one per batch)
 
+Assumed upstream (not part of this submission): the mart build runs
+`main.py --as-of <run date>`, so renewal windows and switch recency follow the calendar
+rather than the brief's fixed 2026-09-14. It then runs the data tests against that build
+(`WAREHOUSE_PATH=<build> pytest -m "not fixture_data"`) and only updates the mart assets
+if they pass. Bad data therefore never triggers this DAG.
+
 Guarantees:
-  * Grain: one CRM account (crm_id) per record. Only accounts already matched to a
-    publisher are touched. The sync never creates CRM accounts, so it cannot create
-    duplicates; unmatched publishers go to sales ops through the marts instead.
+  * Grain: one CRM account (crm_id) per record, covering every account linked to a publisher.
+  * No new accounts, ever. Creating an account for an unmatched publisher would duplicate
+    companies already in the CRM under another name: Brightfin would get a second account
+    next to "Brightfin Holdings", a $408k Customer. Unmatched publishers reach reps through
+    the call list instead (sales_motion 'verify_crm_account' or 'new_business', routed by
+    sales ops). Once an account is created or fixed in the CRM, the next build links it and
+    the sync picks it up.
   * Idempotent retries: each record is an update keyed on crm_id, so sending it twice
     writes the same values twice. sync_state stores the hash of the last payload pushed
     per account, so a re-run only sends what actually changed.
+  * Nothing goes stale: an account we pushed before but that is no longer in the payload
+    (it lost its link, e.g. a website was edited) gets its Product_* fields cleared.
   * Halfway failure: batches are mapped tasks. Each batch records its own sync_state rows
     when it succeeds, and a retry re-runs only the failed batches.
   * Manual edits: we only write Product_* fields, which are read-only for reps, so a
@@ -26,8 +38,8 @@ from datetime import timedelta
 
 from airflow.sdk import Asset, dag, task
 
-# Produced by the build_marts DAG (outlets=[...]), which is itself scheduled on the ingestion
-# DAGs' assets, so a change in any product-side table flows all the way here.
+# Updated by the mart build (its outlets), which is itself scheduled on the ingestion
+# assets, so a change in any product-side table flows all the way here.
 GOLDEN_APPS = Asset("s3://lake/marts/golden_apps")
 PUBLISHER_OPPORTUNITIES = Asset("s3://lake/marts/publisher_opportunities")
 
@@ -107,6 +119,12 @@ def crm_sync():
         last_pushed = dict(warehouse.execute(  # noqa: F821
             "select crm_id, payload_hash from ops.crm_sync_state"
         ))
+        # Accounts we wrote to before that are no longer linked: blank our fields so the CRM
+        # doesn't keep showing an old signal. Once cleared, their hash matches and they're skipped.
+        current = {r["crm_id"] for r in records}
+        for crm_id in last_pushed.keys() - current:
+            cleared = {"crm_id": crm_id, **dict.fromkeys(FIELD_MAP)}
+            records.append({**cleared, "payload_hash": payload_hash(cleared)})
         return [r for r in records if last_pushed.get(r["crm_id"]) != r["payload_hash"]]
 
     @task

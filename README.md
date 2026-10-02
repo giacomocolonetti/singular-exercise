@@ -20,7 +20,8 @@ uv run main.py   # builds the tables and exports them to output/*.csv
 uv run pytest    # data tests
 ```
 
-"Today" is fixed at **2026-09-14**. Business thresholds live in `PARAMS` in `main.py`.
+"Today" defaults to **2026-09-14**, as the brief asks. `--as-of YYYY-MM-DD` sets another date.
+Business thresholds live in `PARAMS` in `main.py`.
 
 ## The tables
 
@@ -242,12 +243,22 @@ ingestion DAGs ─▶ build tables ─▶ crm_sync: build payload ─▶ keep ch
 ```
 
 - **Trigger and grain.** The sync runs when the tables are rebuilt (Airflow Assets), not on
-  a timer. It pushes one record per CRM account, covering *all* linked accounts. That way,
-  fields are cleared when a publisher leaves the call list.
-- **No duplicates on retry.** The sync only **updates** existing accounts by their CRM id and
-  never creates any, so a retry rewrites the same values. A small state table keeps a
-  fingerprint of what was last sent to each account, and only changed accounts are pushed.
-  That also catches changes caused by time passing, such as a renewal window opening.
+  a timer. The rebuild runs `main.py --as-of <run date>`, so renewal windows move with the
+  calendar instead of staying at 2026-09-14, and it only signals the sync once the data tests
+  pass. The sync pushes one record per CRM account, for *all* linked accounts, not just
+  those on the call list.
+- **No duplicates on retry.** The sync only **updates** existing accounts by their CRM id, so
+  a retry rewrites the same values. A small state table keeps a fingerprint of what was last
+  sent to each account, and only changed accounts are pushed. That also catches changes
+  caused by time passing, such as a renewal window opening.
+- **Why it never creates accounts.** The 25 call-list publishers with no linked account never
+  reach the CRM through the sync. That is deliberate. Creating them would have made a second
+  "Brightfin" next to "Brightfin Holdings", a $408k customer. They reach reps through the
+  call list instead (`verify_crm_account` / `new_business`). Once sales ops creates or fixes
+  the account, the next rebuild links it and the sync picks it up.
+- **No stale fields.** Fields are cleared when a publisher leaves the call list, and also when
+  an account loses its link altogether (for example, its website is edited). The sync blanks
+  every account it wrote to before that is no longer in the payload.
 - **Failure halfway through.** Each batch of 200 accounts is a separate task that records its
   success. A retry re-runs only the failed batches. If the retry fails too, the data team is
   alerted.
@@ -270,7 +281,9 @@ and our outputs change with the date even when no source row changes.
 - **Business rules and known cases:** e.g. Petrel Studios keeps its $179k and its owner.
 
 **In production, a silent break would be caught by:**
-- **Running these tests before the CRM sync**, so bad data never reaches reps.
+- **Running these tests before the CRM sync**, so bad data never reaches reps:
+  `WAREHOUSE_PATH=<new build> uv run pytest -m "not fixture_data"` tests the build that was
+  just made. Tests that pin known cases of the sample data are marked `fixture_data` and skipped.
 - **Comparing each run with the previous one**: row counts, the CRM match rate (76% today)
   and total ARR, with an alert on a large swing.
 - **Freshness alerts** if a source stops updating.

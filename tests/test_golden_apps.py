@@ -1,5 +1,7 @@
 """golden_apps: one row per app, and every number adds back to the source."""
 
+import pytest
+
 
 # --- grain -----------------------------------------------------------------------------
 
@@ -48,6 +50,7 @@ def test_repeated_arr_is_the_publishers_arr_on_every_row(scalar):
     """) == 0
 
 
+@pytest.mark.fixture_data
 def test_documented_query_gives_arr_under_an_app_filter(scalar):
     # README pattern for "ARR of publishers using AppsFlyer": one value per publisher, then sum.
     documented = scalar("""
@@ -170,6 +173,7 @@ def test_main_mmp_agrees_across_tables(scalar):
 
 # --- known cases, checked by hand against the CSVs -------------------------------------
 
+@pytest.mark.fixture_data
 def test_known_switch(con):
     row = con.sql("""
         select previous_mmp, current_mmp, switch_date::varchar, is_recent_switch
@@ -178,6 +182,7 @@ def test_known_switch(con):
     assert row == ("AppsFlyer", "Adjust", "2026-07-02", True)
 
 
+@pytest.mark.fixture_data
 def test_duplicate_crm_accounts_keep_arr_and_owner(con):
     # Two Petrel Studios records: one holds the $179k ARR with no owner, the other the owner.
     row = con.sql("""
@@ -187,6 +192,7 @@ def test_duplicate_crm_accounts_keep_arr_and_owner(con):
     assert row == ("Viktor Costa", 179000, 1)
 
 
+@pytest.mark.fixture_data
 def test_holdings_account_is_surfaced_not_merged(con):
     # 'Brightfin Holdings' ($408k Customer) has its own domain: not linked, but shown to the rep.
     row = con.sql("""
