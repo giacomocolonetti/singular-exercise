@@ -1,10 +1,13 @@
 -- Grain: one row per app (734 rows). The shared "what do we know about this app and its
 -- publisher" table: identity, category, performance, MMP and the CRM view of its publisher.
 --
--- Every numeric measure can be summed across any filter or group-by without double counting:
+-- App-level measures (downloads, users, revenue) can be summed under any filter or group-by:
 --   * performance is summed across platforms here (with per-platform columns kept for drill-down);
---   * MMP history is pivoted into current/previous columns instead of extra rows;
---   * publisher-level ARR is filled on exactly one row per publisher (is_publisher_primary_row).
+--   * MMP history is pivoted into current/previous columns instead of extra rows.
+-- ARR belongs to the publisher, so it comes in two forms (see README, "Which ARR column to use"):
+--   * publisher_active_arr: on one row per publisher; SUM is right for totals and for
+--     publisher-level groupings (territory, owner, account type), not under app filters;
+--   * publisher_arr_repeated: on every row; for app filters, taken once per publisher.
 with performance as (
     select
         app_id,

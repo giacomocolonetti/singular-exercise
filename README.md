@@ -93,8 +93,8 @@ downloads but #36 by revenue. Counting volume twice put it at #14; it now sits a
 - *Volume only:* ignores the ability to pay.
 
 `volume_percentile`, `revenue_percentile` and each metric's own rank are columns, so a rep can
-see why a publisher ranks where it does, or re-sort. The list is ranked by size, as the brief asks. Urgency is a filter on `signal`,
-`sales_motion` and `days_to_renewal`, not part of the score.
+see why a publisher ranks where it does, or re-sort. The list is ranked by size, as the brief
+asks. Urgency is a filter on `signal`, `sales_motion` and `days_to_renewal`, not part of the score.
 
 ### 2. Duplicate CRM accounts
 
@@ -150,7 +150,7 @@ never misled by a single label. The rule lives in one place and feeds both table
 
 | Topic | Decision | Why |
 |---|---|---|
-| **Golden table grain** | One row per app. Platform figures are columns (`ios_*`, `android_*`), and MMP history is current/previous columns. | Every number adds up under any filter. A row per platform or per MMP install would double count, e.g. revenue twice for the 108 apps with two MMPs. |
+| **Golden table grain** | One row per app. Platform figures are columns (`ios_*`, `android_*`), and MMP history is current/previous columns. | Downloads, users and revenue add up under any filter. A row per platform or per MMP install would double count, e.g. revenue twice for the 108 apps with two MMPs. ARR is the exception, because it belongs to the publisher (next row). |
 | **ARR in the golden table** | Two columns. `publisher_active_arr` sits only on the publisher's top app. `publisher_arr_repeated` sits on every app. | ARR belongs to the account, not the app. No single column can be both safe to sum and correct under any app filter (see below). |
 | **Current MMP & switches** | The latest install is the current MMP. A switch needs two or more installs. | There is no uninstall date. An app's first install is a new integration, not a lost deal. |
 | **Renewal date** | The next anniversary of the current MMP's install | Contracts run 12 months and auto-renew. |
@@ -159,9 +159,9 @@ never misled by a single label. The rule lives in one place and feeds both table
 | **Publisher's renewal** | The earliest renewal across its apps, with the main MMP's renewal alongside | Any open window gets a rep into the account. |
 | **Publisher's switch** | Any app switched recently. The most recent switch fills `switched_from` → `switched_to`. | One app moving shows the publisher is shopping. A switch to a competitor means a new 12-month contract was just signed, so the pitch is not to undo it. All 13 such publishers still have apps that haven't moved, and the switched app's first renewal will come round. |
 | **CRM ↔ publisher link** | Cleaned website domain first. The name is used only when the website is missing or broken. No fuzzy matching. | A wrong match sends a rep to the wrong company, which is worse than a missed match. `crm_match_method` shows how each link was made. |
-| **"Holdings" accounts** | Not linked, but shown as `possible_crm_*` on the publisher with the same name | They have their own domain, so the domain rule doesn't link them. But each one names exactly one publisher that has no CRM account ("Brightfin Holdings" ↔ "Brightfin"). Hiding that would let a rep cold-call a $408k customer. See below. |
+| **"Holdings" accounts** | Not linked, but shown as `possible_crm_*` on the publisher with the same name | They have their own domain, so the domain rule doesn't link them. But each unlinked "X Holdings" account names exactly one publisher "X" that has no CRM account ("Brightfin Holdings" ↔ "Brightfin"). Hiding that would let a rep cold-call a $408k customer. See below. |
 | **Who is on the call list** | Any publisher with a switch or renewal signal. Publishers fully on Singular appear only when renewing. | A work list, not a directory (`golden_apps` is the directory). |
-| **No CRM account / no owner** | Kept on the list (25 publishers with no CRM account, 27 rows with no owner) | Net-new leads. The rows with no owner are the routing queue for sales ops. |
+| **No CRM account / no owner** | Kept on the list: 25 publishers with no linked CRM account (6 of them with a probable one), and 27 rows with no owner | Net-new leads. The rows with no owner are the routing queue for sales ops. |
 
 **Which ARR column to use.** ARR belongs to the publisher, but the golden table has one row
 per app, so the right column depends on the question:
@@ -272,7 +272,7 @@ and our outputs change with the date even when no source row changes.
 ## Testing
 
 `uv run pytest` rebuilds everything from scratch and checks the **data**, not just the code
-(26 tests):
+(37 tests):
 
 - **Grain:** an app or publisher never appears twice, and no row is lost.
 - **Totals match the source:** downloads, users, revenue and ARR add up to the same totals
@@ -325,9 +325,10 @@ Until the team answers, the call list takes the relationship from the CRM only, 
 
 - **dbt with its self-hosted documentation site**, so anyone in the company can look up what
   every table and column means. That's what makes self-service analytics real.
-- **A CRM clean-up list for RevOps:** the 21 CRM accounts with no publisher, the 7 duplicate
-  merges, and the 11 linked accounts with no owner.
-- **A prospecting list** of the 71 publishers with no CRM account.
+- **A CRM clean-up list for RevOps:** the 12 "Holdings" accounts to confirm, the 9 accounts on
+  placeholder `.example` websites, the 7 duplicate merges, and the 11 linked accounts with no
+  owner.
+- **A prospecting list** of the 61 publishers with no CRM account at all.
 - **Daily snapshots of the call list**, to measure which signals turn into won deals and tune
   the thresholds and the ranking with evidence.
 - **Production hardening:** incremental loads and Iceberg `MERGE` at scale, and the real CRM
