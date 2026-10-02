@@ -93,6 +93,14 @@ select
     case when a.is_publisher_primary_row then c.active_arr end  as publisher_active_arr,
     a.is_publisher_primary_row,
 
+    -- CRM status vs product usage disagree (publisher level): a data-quality signal for RevOps,
+    -- not an error. A Customer may buy products that need no SDK, or the CRM may be stale.
+    case
+        when c.account_type = 'Customer' and not bool_or(m.is_on_singular) over w then 'customer_without_singular_sdk'
+        when c.account_type = 'Prospect' and bool_or(m.is_on_singular) over w     then 'prospect_on_singular_sdk'
+        when c.account_type = 'Churned'  and bool_or(m.is_on_singular) over w     then 'churned_on_singular_sdk'
+    end as crm_sdk_mismatch,
+
     -- a CRM account that is probably this publisher but isn't linked by domain: verify before calling
     c.possible_crm_id,
     c.possible_crm_account_name,
@@ -102,4 +110,5 @@ from apps as a
 left join int_app_mmp as m using (app_id)
 left join int_publisher_crm as c using (publisher_id)
 left join int_publisher_mmp as pm using (publisher_id)
+window w as (partition by a.publisher_id)
 order by a.publisher_id, a.app_id

@@ -1,7 +1,12 @@
 -- Grain: one row per publisher that has a live signal: a recent MMP switch, or a renewal
--- inside the window. Publishers entirely on Singular appear only when renewing (labelled
--- 'singular_renewal', for customer success). Ranked top-down by performance so a rep can
--- work the list in order.
+-- inside the window. Publishers entirely on the Singular SDK appear only when renewing.
+-- Ranked top-down by performance so a rep can work the list in order.
+--
+-- Two separate questions, two columns:
+--   signal       = what happened in the product data (SDK facts only)
+--   sales_motion = who we are to this company, from the CRM status
+-- They are kept apart because the data shows that being on the Singular SDK and being a
+-- Singular customer are different things: 39 of 42 CRM Customers use no Singular SDK.
 --
 -- Built from golden_apps, so every number here reconciles with the golden table. The main
 -- MMP rule lives in int_publisher_mmp, shared with golden_apps.
@@ -27,6 +32,8 @@ rollup as (
         any_value(account_type)                 as account_type,
         any_value(account_owner)                as account_owner,
         any_value(territory)                    as territory,
+        any_value(possible_crm_id)              as possible_crm_id,
+        any_value(crm_sdk_mismatch)             as crm_sdk_mismatch,
         sum(publisher_active_arr)               as publisher_active_arr,
 
         count(*)                                as app_count,
@@ -37,8 +44,8 @@ rollup as (
 
         -- switch signals
         count_if(is_recent_switch)                                              as apps_switched_recently,
-        count_if(is_recent_switch and previous_mmp = 'Singular')                as apps_churned_from_singular,
-        count_if(is_recent_switch and current_mmp  = 'Singular')                as apps_switched_to_singular,
+        count_if(is_recent_switch and previous_mmp = 'Singular')                as apps_left_singular_sdk,
+        count_if(is_recent_switch and current_mmp  = 'Singular')                as apps_adopted_singular_sdk,
         count_if(is_recent_switch and current_mmp <> 'Singular')                as apps_switched_to_competitor,
 
         -- renewal signals
@@ -62,17 +69,25 @@ signals as (
         s.switched_to,
         r.apps_switched_recently > 0     as is_recent_switcher,
         r.apps_renewing_in_window > 0    as is_approaching_renewal,
-        -- one label per publisher, most urgent first
+        -- What happened (SDK facts), one per publisher, most urgent first. A publisher fully on
+        -- the Singular SDK can only get 'singular_sdk_renewal': nothing left to win there.
         case
-            when r.apps_churned_from_singular > 0   then 'churned_from_singular'   -- lost an app: save it
-            when r.competitor_apps_renewing > 0     then 'competitor_renewal'      -- open window to win
-            when r.apps_switched_to_competitor > 0  then 'switched_to_competitor'  -- in motion, evaluating
-            when r.apps_switched_to_singular > 0
-             and r.singular_app_count < r.app_count then 'switched_to_singular'    -- won an app: expand to the rest
-            when r.singular_apps_renewing > 0       then 'singular_renewal'        -- retention, customer success
-        end as opportunity_type
-        -- A publisher fully on Singular can only get 'singular_renewal': nothing left to win,
-        -- but customer success should still see the renewal coming.
+            when r.apps_left_singular_sdk > 0       then 'left_singular_sdk'       -- an app dropped our SDK
+            when r.competitor_apps_renewing > 0     then 'competitor_renewal'      -- competitor contract up soon
+            when r.apps_switched_to_competitor > 0  then 'switched_to_competitor'  -- moved between competitors
+            when r.apps_adopted_singular_sdk > 0
+             and r.singular_app_count < r.app_count then 'adopted_singular_sdk'    -- other apps still elsewhere
+            when r.singular_apps_renewing > 0       then 'singular_sdk_renewal'
+        end as signal,
+        -- Who we are to them (CRM status), which decides who acts.
+        case
+            when r.account_type = 'Customer'        then 'existing_customer'   -- account owner; never a cold call
+            when r.account_type = 'Churned'         then 'win_back'
+            when r.account_type = 'Partner'         then 'partner'
+            when r.crm_id is null
+             and r.possible_crm_id is not null      then 'verify_crm_account'  -- check the probable account first
+            else 'new_business'                                                -- Prospect, or no CRM account
+        end as sales_motion
     from rollup as r
     join int_publisher_mmp as m using (publisher_id)
     left join latest_switch as s using (publisher_id)
@@ -96,12 +111,14 @@ scored as (
         rank() over (order by users desc)                        as users_rank,
         rank() over (order by revenue desc)                      as revenue_rank
     from signals
-    where opportunity_type is not null
+    where signal is not null
 )
 
 select
     row_number() over (order by s.performance_score desc, s.revenue desc, s.publisher_id) as rank,
-    s.opportunity_type,
+    s.signal,
+    s.sales_motion,
+    s.crm_sdk_mismatch,
 
     -- who
     s.publisher_id,

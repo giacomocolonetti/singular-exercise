@@ -82,8 +82,8 @@ downloads, so it lands at #7.
 - *Custom weights* (e.g. 50% revenue): there is no evidence yet for any particular weights.
 
 Each metric's own rank is a column (`downloads_rank`, `users_rank`, `revenue_rank`), so a rep
-can re-sort. The list is ranked by size, as the brief asks. Urgency is a filter on
-`opportunity_type` and `days_to_renewal`, not part of the score.
+can re-sort. The list is ranked by size, as the brief asks. Urgency is a filter on `signal`,
+`sales_motion` and `days_to_renewal`, not part of the score.
 
 ### 2. Duplicate CRM accounts
 
@@ -169,16 +169,40 @@ Customer**) have no signal today, but carry the same columns in `golden_apps`. T
 narrow on purpose: the names must match exactly once "Holdings" is removed, and neither side
 may already be linked. A human then confirms each pair in the CRM.
 
-**We are Singular, so the same signal means different things.** Each publisher gets one
-`opportunity_type`, the most urgent first:
+### Being on the Singular SDK is not the same as being a Singular customer
 
-| `opportunity_type` | Meaning | Who acts | Today |
-|---|---|---|---|
-| `churned_from_singular` | An app recently left Singular | Account manager | 3 |
-| `competitor_renewal` | A competitor contract renews within 90 days | Sales | 96 |
-| `switched_to_competitor` | Recently moved between competitors | Sales | 13 |
-| `switched_to_singular` | Moved an app to us; its other apps are elsewhere | Sales: expand | 5 |
-| `singular_renewal` | Only Singular apps are renewing | Customer success | 3 |
+I first assumed that an app on the Singular SDK meant a Singular customer. The data says
+otherwise:
+
+- **39 of the 42 CRM Customers have no app on the Singular SDK.** They hold $11.7M of the
+  $12.6M ARR.
+- **21 Prospects already run the Singular SDK** on at least one app, 5 of them on every app.
+- **All 3 publishers whose app recently left the Singular SDK are Prospects** in the CRM.
+
+Customers may buy products that need no SDK, or the CRM may be out of date. The data can't
+tell which, so this went back to the team as a question. Meanwhile the call list keeps the
+two facts in **separate columns**, so neither is inferred from the other:
+
+| `signal`: what happened (SDK) | Today |
+|---|---|
+| `left_singular_sdk`: an app replaced the Singular SDK | 3 |
+| `competitor_renewal`: a competitor contract renews within 90 days | 96 |
+| `switched_to_competitor`: moved between competitors | 13 |
+| `adopted_singular_sdk`: moved an app to Singular, other apps still elsewhere | 5 |
+| `singular_sdk_renewal`: only Singular SDK apps are renewing | 3 |
+
+| `sales_motion`: who we are to them (CRM) | Who acts | Today |
+|---|---|---|
+| `existing_customer` | The account owner. Never a cold call. | 13 |
+| `win_back` | The account owner | 12 |
+| `partner` | Partnerships | 7 |
+| `verify_crm_account` | Sales ops: confirm the probable "Holdings" account first | 6 |
+| `new_business` | Sales (sales ops routes the rows with no owner) | 82 |
+
+The combination is what a rep needs. For example, 12 **existing customers ($3.8M ARR) have a
+competitor attribution contract renewing**. That is a cross-sell to someone who already pays
+us, not new business. `crm_sdk_mismatch` flags every publisher where the CRM and the SDK
+disagree, for RevOps to resolve.
 
 ### Data issues found and handled
 
@@ -232,7 +256,8 @@ and our outputs change with the date even when no source row changes.
 
 ## Assumptions
 
-- **We are Singular:** a Singular app is our customer.
+- **We are Singular,** but an app on the Singular SDK is *not* assumed to be a customer (see
+  above). The commercial relationship comes from the CRM only.
 - **No uninstall date exists**, so the latest install is the current MMP.
 - **Contracts start on the install date.**
 - **Performance figures cover the same period** for every app, so they can be added together.

@@ -45,7 +45,8 @@ def test_metrics_equal_the_sum_of_the_publishers_apps(scalar):
 def test_every_row_has_a_signal_and_a_type(scalar):
     assert scalar("""
         select count(*) from publisher_opportunities
-        where not (is_recent_switcher or is_approaching_renewal) or opportunity_type is null
+        where not (is_recent_switcher or is_approaching_renewal)
+           or signal is null or sales_motion is null
     """) == 0
 
 
@@ -53,7 +54,47 @@ def test_publishers_fully_on_singular_appear_only_as_renewals(scalar):
     assert scalar("""
         select count(*) from publisher_opportunities
         where singular_app_count = app_count
-          and (opportunity_type <> 'singular_renewal' or not is_approaching_renewal)
+          and (signal <> 'singular_sdk_renewal' or not is_approaching_renewal)
+    """) == 0
+
+
+# --- sales motion comes from the CRM, never from the SDK -------------------------------
+
+def test_a_paying_customer_is_never_treated_as_new_business(scalar):
+    assert scalar("""
+        select count(*) from publisher_opportunities
+        where (account_type = 'Customer') <> (sales_motion = 'existing_customer')
+    """) == 0
+
+
+def test_motion_matches_crm_status(scalar):
+    assert scalar("""
+        select count(*) from publisher_opportunities
+        where sales_motion <> case
+            when account_type = 'Customer' then 'existing_customer'
+            when account_type = 'Churned'  then 'win_back'
+            when account_type = 'Partner'  then 'partner'
+            when crm_id is null and possible_crm_account_name is not null then 'verify_crm_account'
+            else 'new_business' end
+    """) == 0
+
+
+def test_probable_crm_account_is_always_verified_before_calling(scalar):
+    # Brightfin (#50 on the list, $408k Customer under 'Brightfin Holdings') must not be cold-called.
+    assert scalar("""
+        select count(*) from publisher_opportunities
+        where possible_crm_account_name is not null and sales_motion <> 'verify_crm_account'
+    """) == 0
+
+
+def test_crm_sdk_mismatch_follows_its_definition(scalar):
+    assert scalar("""
+        select count(*) from publisher_opportunities
+        where crm_sdk_mismatch is distinct from case
+            when account_type = 'Customer' and singular_app_count = 0 then 'customer_without_singular_sdk'
+            when account_type = 'Prospect' and singular_app_count > 0 then 'prospect_on_singular_sdk'
+            when account_type = 'Churned'  and singular_app_count > 0 then 'churned_on_singular_sdk'
+        end
     """) == 0
 
 
@@ -74,10 +115,10 @@ def test_main_mmp_is_one_of_the_publishers_current_mmps(scalar):
     """) == 0
 
 
-def test_churn_label_only_when_an_app_left_singular(scalar):
+def test_left_singular_sdk_only_when_an_app_left_singular(scalar):
     assert scalar("""
         select count(*) from publisher_opportunities as p
-        where opportunity_type = 'churned_from_singular'
+        where signal = 'left_singular_sdk'
           and not exists (
               select 1 from golden_apps as g
               where g.publisher_id = p.publisher_id and g.is_recent_switch and g.previous_mmp = 'Singular'

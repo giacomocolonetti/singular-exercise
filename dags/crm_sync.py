@@ -36,7 +36,9 @@ BATCH_SIZE = 200  # Salesforce Composite API accepts up to 200 records per call
 # Every field we write is owned by the integration: created for this sync and read-only for
 # reps (field-level security). Rep-owned fields (owner, stage, notes, ...) are never in the payload.
 FIELD_MAP = {
-    "opportunity_type": "Product_Opportunity_Type__c",
+    "signal": "Product_Signal__c",
+    "sales_motion": "Product_Sales_Motion__c",
+    "crm_sdk_mismatch": "Product_CRM_SDK_Mismatch__c",
     "priority_rank": "Product_Priority_Rank__c",
     "current_mmps": "Product_Current_MMPs__c",
     "main_mmp": "Product_Main_MMP__c",
@@ -51,7 +53,9 @@ FIELD_MAP = {
 PAYLOAD_SQL = """
     select
         g.crm_id,
-        o.opportunity_type,
+        o.signal,
+        o.sales_motion,
+        any_value(g.crm_sdk_mismatch)                                   as crm_sdk_mismatch,
         o.rank                                                          as priority_rank,
         string_agg(distinct g.current_mmp, ', ' order by g.current_mmp) as current_mmps,
         o.main_mmp,
@@ -62,7 +66,7 @@ PAYLOAD_SQL = """
     from golden_apps as g
     left join publisher_opportunities as o using (publisher_id)
     where g.crm_id is not null
-    group by g.crm_id, o.opportunity_type, o.rank, o.main_mmp
+    group by g.crm_id, o.signal, o.sales_motion, o.rank, o.main_mmp
 """
 
 
