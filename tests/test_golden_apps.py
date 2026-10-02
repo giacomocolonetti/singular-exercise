@@ -137,7 +137,21 @@ def test_every_app_has_a_current_mmp_and_a_renewal_within_a_year(scalar):
         select count(*) from golden_apps
         where current_mmp is null
            or next_renewal_date not between as_of_date and as_of_date + interval 1 year
-           or next_renewal_date <= current_mmp_install_date
+           or next_renewal_date <= contract_start_date
+           or contract_start_date > current_mmp_install_date
+    """) == 0
+
+
+def test_one_contract_per_publisher_and_mmp(scalar):
+    # "auto-renew unless the publisher moves": apps of a publisher on the same MMP share one
+    # contract, so a later sibling app can never create a renewal of its own.
+    assert scalar("""
+        select count(*) from (
+            select publisher_id, current_mmp from golden_apps
+            group by all
+            having count(distinct contract_start_date) > 1 or count(distinct next_renewal_date) > 1
+                or min(contract_start_date) <> min(current_mmp_install_date)
+        )
     """) == 0
 
 
@@ -180,6 +194,21 @@ def test_known_switch(con):
         from golden_apps where app_id = 'APP-1001'
     """).fetchone()
     assert row == ("AppsFlyer", "Adjust", "2026-07-02", True)
+
+
+@pytest.mark.fixture_data
+def test_contract_that_just_renewed_is_not_in_the_window(con):
+    # Jubilee Interactive's AppsFlyer contract started 2025-08-28 and renewed on 2026-08-28.
+    # Jubilee Charge joined it on 2025-09-24: that must not look like a renewal on 2026-09-24.
+    rows = con.sql("""
+        select app_name, contract_start_date::varchar, next_renewal_date::varchar, is_in_renewal_window
+        from golden_apps where publisher_name = 'Jubilee Interactive' and current_mmp = 'AppsFlyer'
+        order by app_name
+    """).fetchall()
+    assert rows == [
+        ("Jubilee Charge", "2025-08-28", "2027-08-28", False),
+        ("Jubilee Kids", "2025-08-28", "2027-08-28", False),
+    ]
 
 
 @pytest.mark.fixture_data

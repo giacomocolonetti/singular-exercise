@@ -79,7 +79,8 @@ select
     m.switch_date,
     m.days_since_switch,
     m.is_recent_switch,
-    m.next_renewal_date,
+    m.contract_start_date,          -- start of the publisher's contract with this MMP
+    m.next_renewal_date,            -- next anniversary of that contract (shared by its apps)
     m.days_to_renewal,
     m.is_in_renewal_window,
 

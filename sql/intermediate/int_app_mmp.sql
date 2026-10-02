@@ -1,12 +1,15 @@
 -- Grain: one row per app.
 -- Turns the install history into: which MMP the app is on today, whether it switched,
--- and when its current contract renews.
+-- and when the contract covering it renews.
 --
 -- Rules (assumptions, see README):
 --   * No uninstall date exists, so the most recent install is the current MMP and every
 --     earlier one is treated as replaced.
 --   * A switch needs at least two installs; an app's first-ever install is not a switch.
---   * Contracts run 12 months from the install date and auto-renew yearly.
+--   * The contract belongs to the publisher, not the app ("MMP contracts run for 12 months
+--     and auto-renew unless the publisher moves"). One contract per publisher x MMP, starting
+--     at the earliest current install of that MMP at the publisher and renewing yearly from
+--     there. An app added later joins that contract; it does not start a new one.
 with installs as (
     select
         *,
@@ -35,27 +38,38 @@ per_app as (
         cur.mmp_count,
         cur.mmp_count > 1                         as has_switched_mmp,
         case when cur.mmp_count > 1 then cur.install_date end as switch_date,
-        -- complete contract years elapsed since the current install
-        date_sub('year', cur.install_date, getvariable('as_of_date')) as contract_years_elapsed
+        app.publisher_id
     from installs as cur
+    join stg_app_identification as app using (app_id)
     left join installs as prev
         on prev.app_id = cur.app_id
        and prev.recency_rank = 2
     where cur.recency_rank = 1
 ),
 
+contracts as (
+    select
+        *,
+        -- the publisher's contract with this MMP starts with its first app currently on it
+        min(current_mmp_install_date) over (partition by publisher_id, current_mmp) as contract_start_date
+    from per_app
+),
+
 with_renewal as (
     select
         *,
-        -- next anniversary on/after today, never the install day itself
-        -- (29 Feb installs renew on 28 Feb in non-leap years)
+        -- next contract anniversary on/after today, never the start day itself
+        -- (29 Feb starts renew on 28 Feb in non-leap years)
         cast(case
             when contract_years_elapsed >= 1
-             and current_mmp_install_date + to_years(contract_years_elapsed) >= getvariable('as_of_date')
-                then current_mmp_install_date + to_years(contract_years_elapsed)
-            else current_mmp_install_date + to_years(contract_years_elapsed + 1)
+             and contract_start_date + to_years(contract_years_elapsed) >= getvariable('as_of_date')
+                then contract_start_date + to_years(contract_years_elapsed)
+            else contract_start_date + to_years(contract_years_elapsed + 1)
         end as date) as next_renewal_date
-    from per_app
+    from (
+        select *, date_sub('year', contract_start_date, getvariable('as_of_date')) as contract_years_elapsed
+        from contracts
+    )
 )
 
 select
@@ -72,6 +86,7 @@ select
     date_diff('day', r.switch_date, getvariable('as_of_date'))                    as days_since_switch,
     coalesce(date_diff('day', r.switch_date, getvariable('as_of_date'))
              <= getvariable('recent_switch_days'), false)                        as is_recent_switch,
+    r.contract_start_date,
     r.next_renewal_date,
     date_diff('day', getvariable('as_of_date'), r.next_renewal_date)              as days_to_renewal,
     date_diff('day', getvariable('as_of_date'), r.next_renewal_date)

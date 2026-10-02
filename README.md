@@ -9,7 +9,7 @@ are approaching a renewal.
 |---|---|
 | Apps / publishers | 734 / 300 |
 | Publishers linked to a CRM account | 229 (76%) |
-| Publishers on today's call list | 120 |
+| Publishers on today's call list | 111 |
 
 ## How to run
 
@@ -41,7 +41,7 @@ Business thresholds live in `PARAMS` in `main.py`.
 | `stg_app_performance` | One row per app × platform (iOS / Android). |
 | `stg_app_category` | One row per app. |
 | `stg_crm_accounts` | One row per CRM account (duplicates included). |
-| `int_app_mmp` | One row per app: current and previous MMP, switch date, next renewal. |
+| `int_app_mmp` | One row per app: current and previous MMP, switch date, and the renewal of the contract it belongs to. |
 | `int_publisher_crm` | One row per publisher: its CRM account, duplicates merged. |
 | `int_publisher_mmp` | One row per publisher: main MMP and MMP mix. |
 
@@ -83,9 +83,9 @@ deals can be measured.
 **Why percentiles.** Raw revenue varies 13× between the median publisher and the largest, so
 raw values would let a few giants take over.
 
-**What it changes.** The metrics agree at the top (9 of the top 10 are the same as a
-revenue-only ranking). The weighting matters in the middle. Beacon Software is #10 by
-downloads but #36 by revenue. Counting volume twice put it at #14; it now sits at #21.
+**What it changes.** The metrics agree at the top: the top 10 is the same as a revenue-only
+ranking. The weighting matters in the middle. Beacon Software is #9 by downloads but #34 by
+revenue. Counting volume twice would put it at #14; it sits at #22.
 
 **Considered and rejected.**
 - *Averaging the three metrics:* counts volume twice, as above.
@@ -153,11 +153,11 @@ never misled by a single label. The rule lives in one place and feeds both table
 | **Golden table grain** | One row per app. Platform figures are columns (`ios_*`, `android_*`), and MMP history is current/previous columns. | Downloads, users and revenue add up under any filter. A row per platform or per MMP install would double count, e.g. revenue twice for the 108 apps with two MMPs. ARR is the exception, because it belongs to the publisher (next row). |
 | **ARR in the golden table** | Two columns. `publisher_active_arr` sits only on the publisher's top app. `publisher_arr_repeated` sits on every app. | ARR belongs to the account, not the app. No single column can be both safe to sum and correct under any app filter (see below). |
 | **Current MMP & switches** | The latest install is the current MMP. A switch needs two or more installs. | There is no uninstall date. An app's first install is a new integration, not a lost deal. |
-| **Renewal date** | The next anniversary of the current MMP's install | Contracts run 12 months and auto-renew. |
+| **Renewal date** | One contract per publisher and MMP. It starts with the publisher's first app on that MMP and renews every 12 months. Apps added later join it. | The brief: contracts "auto-renew unless the *publisher* moves". The publisher holds the contract, not each app (see Assumptions). |
 | **"Approaching renewal"** | Within **90 days**. The window runs from `renewal_window_opens` to `next_renewal_date`. | Time to reach out and close before the contract auto-renews. |
-| **"Recently changed"** | Within **120 days** | Switches happen at about 8 a month, so this threshold mostly sets the **size** of the list (180 days gave 138 publishers, 120 gives 120). It is a capacity setting for the sales team more than a measure of signal quality. |
-| **Publisher's renewal** | The earliest renewal across its apps, with the main MMP's renewal alongside | Any open window gets a rep into the account. |
-| **Publisher's switch** | Any app switched recently. The most recent switch fills `switched_from` → `switched_to`. | One app moving shows the publisher is shopping. A switch to a competitor means a new 12-month contract was just signed, so the pitch is not to undo it. All 13 such publishers still have apps that haven't moved, and the switched app's first renewal will come round. |
+| **"Recently changed"** | Within **120 days** | Switches happen at about 8 a month, so this threshold mostly sets the **size** of the list (180 days would give 130 publishers, 120 gives 111). It is a capacity setting for the sales team more than a measure of signal quality. |
+| **Publisher's renewal** | The earliest renewal across its contracts (one per MMP it uses), with the main MMP's renewal alongside | Any open window gets a rep into the account. |
+| **Publisher's switch** | Any app switched recently. The most recent switch fills `switched_from` → `switched_to`. | One app moving shows the publisher is shopping. A switch to a competitor means a new 12-month contract was just signed, so the pitch is not to undo it. All 15 such publishers still have apps that haven't moved, and the switched app's first renewal will come round. |
 | **CRM ↔ publisher link** | Cleaned website domain first. The name is used only when the website is missing or broken. No fuzzy matching. | A wrong match sends a rep to the wrong company, which is worse than a missed match. `crm_match_method` shows how each link was made. |
 | **"Holdings" accounts** | Not linked, but shown as `possible_crm_*` on the publisher with the same name | They have their own domain, so the domain rule doesn't link them. But each unlinked "X Holdings" account names exactly one publisher "X" that has no CRM account ("Brightfin Holdings" ↔ "Brightfin"). Hiding that would let a rep cold-call a $408k customer. See below. |
 | **Who is on the call list** | Any publisher with a switch or renewal signal. Publishers fully on Singular appear only when renewing. | A work list, not a directory (`golden_apps` is the directory). |
@@ -179,12 +179,12 @@ list, and they must be checked before anyone calls:
 
 | Rank | Publisher | Probable CRM account | Status | ARR | Owner |
 |---|---|---|---|---|---|
-| 11 | Ivory Studio | Ivory Studio Holdings | Prospect | – | Dara Nandakumar |
-| 25 | Dune Mobile | Dune Mobile Holdings | Prospect | – | Anders Costa |
-| 51 | Brightfin | Brightfin Holdings | **Customer** | **$408k** | Zara Okonkwo |
-| 90 | Indigo Systems | Indigo Systems Holdings | **Customer** | **$38k** | Viktor Costa |
-| 105 | Kiln Networks | Kiln Networks Holdings | Prospect | – | Dara Nandakumar |
-| 110 | Lantern Group | Lantern Group Holdings | Partner | – | Dara Nandakumar |
+| 10 | Ivory Studio | Ivory Studio Holdings | Prospect | – | Dara Nandakumar |
+| 20 | Dune Mobile | Dune Mobile Holdings | Prospect | – | Anders Costa |
+| 48 | Brightfin | Brightfin Holdings | **Customer** | **$408k** | Zara Okonkwo |
+| 84 | Indigo Systems | Indigo Systems Holdings | **Customer** | **$38k** | Viktor Costa |
+| 97 | Kiln Networks | Kiln Networks Holdings | Prospect | – | Dara Nandakumar |
+| 103 | Lantern Group | Lantern Group Holdings | Partner | – | Dara Nandakumar |
 
 The other four (Amber Apps, Larkspur Collective, Xenon Play, and **Ridge Company, a $657k
 Customer**) have no signal today, but carry the same columns in `golden_apps`. The rule is
@@ -208,20 +208,20 @@ two facts in **separate columns**, so neither is inferred from the other:
 | `signal`: what happened (SDK) | Today |
 |---|---|
 | `left_singular_sdk`: an app replaced the Singular SDK | 3 |
-| `competitor_renewal`: a competitor contract renews within 90 days | 96 |
-| `switched_to_competitor`: moved between competitors | 13 |
+| `competitor_renewal`: a competitor contract renews within 90 days | 86 |
+| `switched_to_competitor`: moved between competitors | 15 |
 | `adopted_singular_sdk`: moved an app to Singular, other apps still elsewhere | 5 |
-| `singular_sdk_renewal`: only Singular SDK apps are renewing | 3 |
+| `singular_sdk_renewal`: only Singular SDK apps are renewing | 2 |
 
 | `sales_motion`: who we are to them (CRM) | Who acts | Today |
 |---|---|---|
-| `existing_customer` | The account owner. Never a cold call. | 13 |
-| `win_back` | The account owner | 12 |
+| `existing_customer` | The account owner. Never a cold call. | 10 |
+| `win_back` | The account owner | 11 |
 | `partner` | Partnerships | 7 |
 | `verify_crm_account` | Sales ops: confirm the probable "Holdings" account first | 6 |
-| `new_business` | Sales (sales ops routes the rows with no owner) | 82 |
+| `new_business` | Sales (sales ops routes the rows with no owner) | 77 |
 
-The combination is what a rep needs. For example, 12 **existing customers ($3.8M ARR) have a
+The combination is what a rep needs. For example, 8 **existing customers ($3.6M ARR) have a
 competitor attribution contract renewing**. That is a cross-sell to someone who already pays
 us, not new business. `crm_sdk_mismatch` flags every publisher where the CRM and the SDK
 disagree, for RevOps to resolve.
@@ -297,12 +297,17 @@ and our outputs change with the date even when no source row changes.
 - **We are Singular,** but an app on the Singular SDK is *not* assumed to be a customer (see
   above). The commercial relationship comes from the CRM only.
 - **No uninstall date exists**, so the latest install is the current MMP.
-- **Renewal dates are tracked per app, from the install date.** The brief says contracts renew
-  "unless the *publisher* moves", which suggests one contract per publisher. The data agrees:
-  when a publisher runs one MMP on several apps (179 cases), the installs all fall within 45
-  days of each other (median 18), like one contract rolled out app by app. Using each app's
-  own date, and the earliest one per publisher, puts the renewal at most 45 days off a
-  per-contract date, and 83 of the 96 competitor renewals already come from the main MMP.
+- **The publisher holds the contract, not each app.** The brief says contracts "auto-renew
+  unless the *publisher* moves", and the data looks the same way: when a publisher runs one MMP
+  on several apps (179 cases), the installs all fall within 45 days of each other (median 18),
+  like one contract rolled out app by app. So there is one contract per publisher and MMP,
+  starting with its first app on that MMP, and later apps join it.
+  This matters at the year boundary. Renewing each app on its own anniversary would flag
+  publishers that **renewed a few weeks ago**, because a sibling app installed a month later
+  "renews" next. Contract dates remove 9 such publishers from the list (e.g. Harbor Dynamics,
+  whose Branch contract renewed the day before "today") and add none. Jubilee Interactive stays
+  #1, but as a recent switcher, not a renewal: its AppsFlyer contract renewed on 2026-08-28.
+  Each app's own install date remains a column (`current_mmp_install_date`).
 - **Performance figures cover the same period** for every app, so they can be added together.
 - **Duplicate CRM accounts are the same company**, so ARR is not added up.
 
@@ -311,7 +316,7 @@ and our outputs change with the date even when no source row changes.
 | Question | Answer | Effect |
 |---|---|---|
 | Is 90 days the right renewal window? | Yes | None |
-| Is 180 days right for "recently switched"? | Use 120 days | Call list went from 138 to 120 publishers |
+| Is 180 days right for "recently switched"? | Use 120 days | The call list holds 111 publishers instead of 130 |
 | Which ranking metric does sales prefer? | Judgement call | Judgement call #1 |
 | How should duplicate CRM accounts be resolved? | Judgement call | Judgement call #2 |
 | Are "Holdings" accounts parents of publishers? | Use domains as the key | Not linked, but shown as a probable account to verify (10 publishers) |
