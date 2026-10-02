@@ -92,6 +92,9 @@ select
     c.last_activity_date,
     case when a.is_publisher_primary_row then c.active_arr end  as publisher_active_arr,
     a.is_publisher_primary_row,
+    -- the same ARR on every app of the publisher: for filtering and for app-level questions
+    -- ("ARR of publishers using AppsFlyer"). Never SUM it across apps: it repeats.
+    c.active_arr                                                as publisher_arr_repeated,
 
     -- CRM status vs product usage disagree (publisher level): a data-quality signal for RevOps,
     -- not an error. A Customer may buy products that need no SDK, or the CRM may be stale.

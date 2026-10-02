@@ -37,6 +37,32 @@ def test_publisher_arr_is_counted_once(scalar):
     )
 
 
+def test_repeated_arr_is_the_publishers_arr_on_every_row(scalar):
+    assert scalar("""
+        select count(*) from (
+            select publisher_id from golden_apps
+            group by publisher_id
+            having count(distinct publisher_arr_repeated) > 1
+                or max(publisher_arr_repeated) is distinct from sum(publisher_active_arr)
+        )
+    """) == 0
+
+
+def test_documented_query_gives_arr_under_an_app_filter(scalar):
+    # README pattern for "ARR of publishers using AppsFlyer": one value per publisher, then sum.
+    documented = scalar("""
+        select sum(arr) from (
+            select publisher_id, max(publisher_arr_repeated) as arr
+            from golden_apps where current_mmp = 'AppsFlyer'
+            group by publisher_id)
+    """)
+    truth = scalar("""
+        select sum(active_arr) from int_publisher_crm
+        where publisher_id in (select publisher_id from golden_apps where current_mmp = 'AppsFlyer')
+    """)
+    assert documented == truth == 6_271_000
+
+
 def test_exactly_one_primary_row_per_publisher(scalar):
     assert scalar("""
         select count(*) from (

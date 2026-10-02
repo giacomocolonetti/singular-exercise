@@ -150,7 +150,7 @@ never misled by a single label. The rule lives in one place and feeds both table
 | Topic | Decision | Why |
 |---|---|---|
 | **Golden table grain** | One row per app. Platform figures are columns (`ios_*`, `android_*`), and MMP history is current/previous columns. | Every number adds up under any filter. A row per platform or per MMP install would double count, e.g. revenue twice for the 108 apps with two MMPs. |
-| **ARR in the golden table** | Filled only on the publisher's top app (`is_publisher_primary_row`), empty on its other apps | ARR belongs to the account. Copying it onto every app would count a 6-app publisher's ARR six times. With this rule, a plain `SUM` is always right. |
+| **ARR in the golden table** | Two columns. `publisher_active_arr` sits only on the publisher's top app. `publisher_arr_repeated` sits on every app. | ARR belongs to the account, not the app. No single column can be both safe to sum and correct under any app filter (see below). |
 | **Current MMP & switches** | The latest install is the current MMP. A switch needs two or more installs. | There is no uninstall date. An app's first install is a new integration, not a lost deal. |
 | **Renewal date** | The next anniversary of the current MMP's install | Contracts run 12 months and auto-renew. |
 | **"Approaching renewal"** | Within **90 days**. The window runs from `renewal_window_opens` to `next_renewal_date`. | Time to reach out and close before the contract auto-renews. |
@@ -161,6 +161,17 @@ never misled by a single label. The rule lives in one place and feeds both table
 | **"Holdings" accounts** | Not linked, but shown as `possible_crm_*` on the publisher with the same name | They have their own domain, so the domain rule doesn't link them. But each one names exactly one publisher that has no CRM account ("Brightfin Holdings" ↔ "Brightfin"). Hiding that would let a rep cold-call a $408k customer. See below. |
 | **Who is on the call list** | Any publisher with a switch or renewal signal. Publishers fully on Singular appear only when renewing. | A work list, not a directory (`golden_apps` is the directory). |
 | **No CRM account / no owner** | Kept on the list (25 publishers with no CRM account, 27 rows with no owner) | Net-new leads. The rows with no owner are the routing queue for sales ops. |
+
+**Which ARR column to use.** ARR belongs to the publisher, but the golden table has one row
+per app, so the right column depends on the question:
+
+| Question | Use | Example |
+|---|---|---|
+| Total ARR, or by territory / owner / account type | `SUM(publisher_active_arr)` | Total = $12.6M |
+| ARR of publishers that have some app attribute (an MMP, a category, a platform) | One value per publisher, then sum: `select sum(arr) from (select publisher_id, max(publisher_arr_repeated) as arr from golden_apps where current_mmp = 'AppsFlyer' group by 1)` | Publishers using AppsFlyer = **$6.27M**. A plain `SUM(publisher_active_arr)` with that filter gives $4.73M, because it only counts publishers whose *top* app is on AppsFlyer. |
+| Filter apps by account size | `publisher_arr_repeated` | Apps of publishers above $100k ARR |
+
+`publisher_arr_repeated` must never be summed across apps: it repeats on every row.
 
 **Ten publishers have a probable CRM account under a "Holdings" name.** Six are on today's call
 list, and they must be checked before anyone calls:
