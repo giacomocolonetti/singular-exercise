@@ -18,7 +18,7 @@ DB_PATH = OUTPUT_DIR / "warehouse.duckdb"
 PARAMS = {
     "as_of_date": "2026-09-14",  # "today" per the brief, for reproducible results
     "renewal_window_days": 90,  # renewal this close = reachable before the auto-renewal locks in
-    "recent_switch_days": 180,  # switch this recent = publisher still judging its new MMP
+    "recent_switch_days": 120,  # switch this recent = publisher still judging its new MMP
 }
 
 # Dependency order: staging -> intermediate -> marts.

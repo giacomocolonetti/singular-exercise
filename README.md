@@ -72,7 +72,7 @@ never summed.
 ### `publisher_opportunities`: the call list
 
 A rep works an account, not an app, so this table has **one row per publisher**, and it
-is built from `golden_apps` so both tables always show the same numbers. It holds 138
+is built from `golden_apps` so both tables always show the same numbers. It holds 120
 publishers today. Deciding how to represent a multi-app publisher in one row:
 
 | Question | Decision | Why |
@@ -80,7 +80,7 @@ publishers today. Deciding how to represent a multi-app publisher in one row:
 | Who is on the list? | Publishers with a recent switch **or** a renewal within 90 days. A publisher entirely on Singular appears only when renewing, as `singular_renewal` | It's a work list, not a directory (`golden_apps` is the directory). A fully-Singular publisher has nothing left for sales to win, but its renewal is still worth knowing about: having the information and not using it beats not having it. Each team filters on `opportunity_type`. |
 | Main MMP | The current MMP handling the **largest share of the publisher's downloads**, then the most apps, then the most recent adoption | An MMP attributes installs, so download volume is what it handles and what it bills on. App count alone would let three tiny apps outweigh the flagship. `mmp_mix` shows the full split, e.g. `Kochava 75% (1 app), Branch 25% (3 apps)`. The rule is defined once (`int_publisher_mmp`) and also exposed for every publisher as `golden_apps.publisher_main_mmp`. |
 | Which renewal date | `next_renewal_date` = the **earliest** upcoming renewal across all the publisher's apps; `main_mmp_next_renewal_date` is kept alongside | Any open window gets a rep into the conversation. Winning one small app is how you land the account. |
-| Which switch | Any app switched within 180 days. The most recent one fills `switched_from` → `switched_to`, and `apps_switched_recently` counts them | One app moving is already a signal that the publisher is shopping. |
+| Which switch | Any app switched within 120 days. The most recent one fills `switched_from` → `switched_to`, and `apps_switched_recently` counts them | One app moving is already a signal that the publisher is shopping. |
 | Ranking | `performance_score` = the average of the percentile ranks of downloads, users and revenue (each summed to the publisher first) | Percentiles put the three metrics on one scale, so one outlier can't dominate. Each metric's own rank is also a column, so a rep can re-sort. |
 
 **We are Singular, so the same signal means different things.** Each row gets exactly one
@@ -94,8 +94,8 @@ publishers today. Deciding how to represent a multi-app publisher in one row:
 | `switched_to_singular` | Recently moved an app **to us**; its other apps are elsewhere | Sales: expand to the rest |
 | `singular_renewal` | Only our own apps are renewing (including publishers entirely on Singular) | Customer success: retention |
 
-Publishers with **no CRM account** (28 on the list) and **Churned** accounts stay in: they are
-net-new and win-back leads. An empty `account_owner` (30 rows) is the routing queue for sales ops.
+Publishers with **no CRM account** (25 on the list) and **Churned** accounts stay in: they are
+net-new and win-back leads. An empty `account_owner` (27 rows) is the routing queue for sales ops.
 
 ## Model layers
 
@@ -130,9 +130,9 @@ can never duplicate rows.
 | Switch | The app has ≥ 2 installs; switch date = latest install | An app's first-ever install is a new integration, not a lost or won deal. |
 | Next renewal | Next yearly anniversary of the current install, on or after today (and never the install day itself) | Contracts run 12 months and auto-renew. 29 Feb installs renew on 28 Feb. |
 | **Approaching renewal** | Renewal within **90 days** | Enough time to reach out, run a trial and close before the auto-renewal locks the publisher in for another year. |
-| **Recently changed** | Switch within the last **180 days** | Six months in, a publisher is still judging the switch and is often still moving its other apps. After that, the next useful signal is the renewal, which the 90-day rule catches. |
+| **Recently changed** | Switch within the last **120 days** | A switcher is worked while the move is fresh: the publisher is still judging the new MMP and may still be moving its other apps. After that, the next useful signal is the renewal, which the 90-day rule catches. |
 
-Both thresholds are parameters in `main.py`, and both are among the questions sent to the team.
+Both thresholds are parameters in `main.py`.
 
 ### Linking CRM accounts to publishers (`int_publisher_crm`, one row per publisher)
 
@@ -146,11 +146,17 @@ The CRM and the product data share no key, so each CRM account is matched in two
 each link was made. **71 publishers have no CRM account.** They stay in the tables with an
 empty owner: they are net-new leads, not errors.
 
-**No fuzzy matching.** Pointing a rep at the wrong account is worse than a missed match.
-Example: `Brightfin Holdings` (a Customer, $408k ARR) looks like publisher `Brightfin` but has
-its own domain. It may be a parent company or a different business, and guessing is not our
-call. Three such "Holdings" Customers hold **$1.1M ARR (8% of the total)** that cannot be
-linked to a publisher today. This is an open question sent to the team.
+**The domain is the key.** The name fallback only fills in when
+a CRM website is missing or broken. There is **no fuzzy matching**, because pointing a rep at
+the wrong account is worse than a missed match.
+
+**"Holdings" accounts stay separate.** `Brightfin Holdings` (a Customer, $408k ARR) looks like
+publisher `Brightfin`, but it has its own domain, so under the domain key it is a different
+company. The same goes for the other "Holdings" accounts. Three of them are Customers holding
+**$1.1M ARR (8% of the total)** with no product-side publisher behind them. That is worth
+flagging to RevOps, but it is not grounds for a merge. Holdings accounts that share a domain
+with each other (`Xenon Play Holdings` / `Xenon Play Holdings LLC`) follow the same duplicate
+rule as everyone else.
 
 **Duplicate CRM accounts** (7 publishers have two records, often with conflicting owners).
 Instead of picking one record whole, each field is resolved on its own:
@@ -244,7 +250,7 @@ just the code. Three kinds of tests:
 ## Assumptions
 
 Where the brief was ambiguous, I decided and wrote it down here. The ones that change what a
-rep sees are also sent to the team as questions.
+rep sees were also sent to the team as questions (answers below).
 
 - **We are Singular.** Singular is one of the MMPs in the data, so a Singular app is our
   customer, not a competitor's.
@@ -254,7 +260,7 @@ rep sees are also sent to the team as questions.
 - **Performance figures are comparable across apps and platforms** (same period), so they
   can be summed across iOS and Android and across a publisher's apps.
 - **The CRM website identifies the company** and matches `publisher_domain`. The name is
-  only a fallback.
+  only a fallback for missing or broken websites.
 - **Duplicate CRM accounts are the same company entered twice**, so ARR is the max, never
   the sum.
 - **A publisher fully on Singular is not a sales lead.** It appears on the call list only
@@ -262,16 +268,18 @@ rep sees are also sent to the team as questions.
   what to do with it.
 - **"Today" is 2026-09-14**, and a renewal falling exactly on today is still in the window.
 
-### Open questions sent to the team (2026-09-30)
+### Questions asked, and the team's answers
 
-1. Is 90 days the right renewal window for the real sales cycle?
-2. Is 180 days the right definition of "recently switched"?
-3. Does sales prefer one metric (e.g. revenue) over the combined performance score?
-4. Is there an existing rule for which duplicate CRM account is the real one?
-5. Are the "X Holdings" accounts parent companies of publisher "X"? (Three Customers, $1.1M ARR.)
-6. Do publishers ever run two MMPs on the same app in parallel?
+Sent on 2026-09-30, answered by the sales lead.
 
-Each answer is a one-line change: a parameter in `main.py` or a single rule in one SQL file.
+| # | Question | Answer | Effect |
+|---|---|---|---|
+| 1 | Is 90 days the right renewal window? | Yes, 90 days. | None: confirmed. |
+| 2 | Is 180 days right for "recently switched"? | Use a shorter cycle: 120 days. | `recent_switch_days` 180 → 120. Call list 138 → 120. |
+| 3 | Does sales prefer one ranking metric? | A judgement call, for me to make. | Kept the average percentile score (see the ranking rationale above). |
+| 4 | Is there a rule for which duplicate CRM account is real? | A judgement call, for me to make. | Kept the field-by-field merge (see the duplicates table). |
+| 5 | Are "X Holdings" accounts parents of publisher "X"? | Use domains as the key; merge same-domain accounts however I decide, as long as it's documented. | Holdings have their own domains, so they stay separate. Documented under matching. |
+| 6 | Do apps run two MMPs in parallel? | Part of the exercise (the main-MMP rule). | App level: latest install = current MMP (assumption kept). Publisher level: the main-MMP rule. |
 
 ## What I'd do differently with more time
 
@@ -286,8 +294,7 @@ Each answer is a one-line change: a parameter in `main.py` or a single rule in o
 - **A whitespace list:** the 71 publishers with no CRM account, ranked the same way. That is
   a prospecting list for net-new business.
 - **Daily snapshots of the call list**, so we can measure which signals actually turn into
-  won deals, and tune the 90/180-day thresholds and the ranking with data instead of intuition.
-- **Parent/child accounts** in the golden table if the team confirms the Holdings structure.
+  won deals, and tune the 90/120-day thresholds and the ranking with data instead of intuition.
 - **At scale:** incremental models and Iceberg `MERGE` for the lake tables. Wire the real CRM
   client, the `crm_sync_state` table and the field-history guard into the DAG, and add a
   `build_marts` DAG that runs the tests as a gate.
