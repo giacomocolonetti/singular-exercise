@@ -153,11 +153,11 @@ never misled by a single label. The rule lives in one place and feeds both table
 | **Golden table grain** | One row per app. Platform figures are columns (`ios_*`, `android_*`), and MMP history is current/previous columns. | Downloads, users and revenue add up under any filter. A row per platform or per MMP install would double count, e.g. revenue twice for the 108 apps with two MMPs. ARR is the exception, because it belongs to the publisher (next row). |
 | **ARR in the golden table** | Two columns. `publisher_active_arr` sits only on the publisher's top app. `publisher_arr_repeated` sits on every app. | ARR belongs to the account, not the app. No single column can be both safe to sum and correct under any app filter (see below). |
 | **Current MMP & switches** | The latest install is the current MMP. A switch needs two or more installs. | There is no uninstall date. An app's first install is a new integration, not a lost deal. |
-| **Renewal date** | One contract per publisher and MMP. It starts with the publisher's first app on that MMP and renews every 12 months. Apps added later join it. | The brief: contracts "auto-renew unless the *publisher* moves". The publisher holds the contract, not each app (see Assumptions). |
+| **Renewal date** | One contract per publisher and MMP. It starts when the publisher's first app goes on that MMP, lasts as long as at least one app stays on it, and renews every 12 months from that start. Apps added later join it, and an app moving off doesn't end it while a sibling stays. | The brief: contracts "auto-renew unless the *publisher* moves". The publisher holds the contract, not each app (see Assumptions). |
 | **"Approaching renewal"** | Within **90 days**. The window runs from `renewal_window_opens` to `next_renewal_date`. | Time to reach out and close before the contract auto-renews. |
 | **"Recently changed"** | Within **120 days** | Switches happen at about 8 a month, so this threshold mostly sets the **size** of the list (180 days would give 130 publishers, 120 gives 111). It is a capacity setting for the sales team more than a measure of signal quality. |
 | **Publisher's renewal** | The earliest renewal across its contracts (one per MMP it uses), with the main MMP's renewal alongside | Any open window gets a rep into the account. |
-| **Publisher's switch** | Any app switched recently. The most recent switch fills `switched_from` → `switched_to`. | One app moving shows the publisher is shopping. A switch to a competitor means a new 12-month contract was just signed, so the pitch is not to undo it. All 15 such publishers still have apps that haven't moved, and the switched app's first renewal will come round. |
+| **Publisher's switch** | Any app switched recently. The most recent switch fills `switched_from` → `switched_to`. | One app moving shows the publisher is shopping. A switch to a competitor means a new 12-month contract was just signed, so the pitch is not to undo it. All 17 such publishers still have apps that haven't moved, and the switched app's first renewal will come round. |
 | **CRM ↔ publisher link** | Cleaned website domain first. The name is used only when the website is missing or broken. No fuzzy matching. | A wrong match sends a rep to the wrong company, which is worse than a missed match. `crm_match_method` shows how each link was made. |
 | **"Holdings" accounts** | Not linked, but shown as `possible_crm_*` on the publisher with the same name | They have their own domain, so the domain rule doesn't link them. But each unlinked "X Holdings" account names exactly one publisher "X" that has no CRM account ("Brightfin Holdings" ↔ "Brightfin"). Hiding that would let a rep cold-call a $408k customer. See below. |
 | **Who is on the call list** | Any publisher with a switch or renewal signal. Publishers fully on Singular appear only when renewing. | A work list, not a directory (`golden_apps` is the directory). |
@@ -208,8 +208,8 @@ two facts in **separate columns**, so neither is inferred from the other:
 | `signal`: what happened (SDK) | Today |
 |---|---|
 | `left_singular_sdk`: an app replaced the Singular SDK | 3 |
-| `competitor_renewal`: a competitor contract renews within 90 days | 86 |
-| `switched_to_competitor`: moved between competitors | 15 |
+| `competitor_renewal`: a competitor contract renews within 90 days | 84 |
+| `switched_to_competitor`: moved between competitors | 17 |
 | `adopted_singular_sdk`: moved an app to Singular, other apps still elsewhere | 5 |
 | `singular_sdk_renewal`: only Singular SDK apps are renewing | 2 |
 
@@ -286,7 +286,7 @@ and our outputs change with the date even when no source row changes.
 ## Testing
 
 `uv run pytest` rebuilds everything from scratch and checks the **data**, not just the code
-(40 tests):
+(42 tests):
 
 - **Grain:** an app or publisher never appears twice, and no row is lost.
 - **Totals match the source:** downloads, users, revenue and ARR add up to the same totals
@@ -314,13 +314,17 @@ and our outputs change with the date even when no source row changes.
 - **The publisher holds the contract, not each app.** The brief says contracts "auto-renew
   unless the *publisher* moves", and the data looks the same way: when a publisher runs one MMP
   on several apps (179 cases), the installs all fall within 45 days of each other (median 18),
-  like one contract rolled out app by app. So there is one contract per publisher and MMP,
-  starting with its first app on that MMP, and later apps join it.
+  like one contract rolled out app by app. So there is one contract per publisher and MMP.
+  It starts when the publisher's first app goes on that MMP and lasts while any app stays on
+  it, even if that first app has since moved off. Only a full gap with no app on the MMP ends it.
   This matters at the year boundary. Renewing each app on its own anniversary would flag
   publishers that **renewed a few weeks ago**, because a sibling app installed a month later
   "renews" next. Contract dates remove 9 such publishers from the list (e.g. Harbor Dynamics,
   whose Branch contract renewed the day before "today") and add none. Jubilee Interactive stays
   #1, but as a recent switcher, not a renewal: its AppsFlyer contract renewed on 2026-08-28.
+  The same applies when the app that started a contract later moved off (27 publisher-and-MMP
+  pairs). Ivory Digital's Adjust contract began with Ivory Saga on 2022-08-29 and renewed on
+  2026-08-29, so it appears as a recent switcher, not a renewal due 2026-10-07.
   Each app's own install date remains a column (`current_mmp_install_date`).
 - **Performance figures cover the same period** for every app, so they can be added together.
 - **Duplicate CRM accounts are the same company**, so ARR is not added up.

@@ -150,8 +150,28 @@ def test_one_contract_per_publisher_and_mmp(scalar):
             select publisher_id, current_mmp from golden_apps
             group by all
             having count(distinct contract_start_date) > 1 or count(distinct next_renewal_date) > 1
-                or min(contract_start_date) <> min(current_mmp_install_date)
+                or min(contract_start_date) > min(current_mmp_install_date)
         )
+    """) == 0
+
+
+def test_contract_starts_where_the_unbroken_period_on_the_mmp_starts(scalar):
+    # Recomputed from the raw installs: no app of the publisher was already on that MMP when
+    # the contract supposedly started. If one was, the contract started earlier (an app that
+    # later moved off keeps the contract running while a sibling stays).
+    assert scalar("""
+        with spans as (
+            select a.publisher_id, i.mmp, i.install_date as span_start,
+                   lead(i.install_date) over (partition by i.app_id order by i.install_date) as span_end
+            from stg_sdk_installs as i join stg_app_identification as a using (app_id)
+        ),
+        contracts as (
+            select distinct publisher_id, current_mmp as mmp, contract_start_date from golden_apps
+        )
+        select count(*) from contracts as c
+        join spans as s using (publisher_id, mmp)
+        where s.span_start < c.contract_start_date
+          and coalesce(s.span_end, date '9999-12-31') >= c.contract_start_date
     """) == 0
 
 
@@ -208,6 +228,22 @@ def test_contract_that_just_renewed_is_not_in_the_window(con):
     assert rows == [
         ("Jubilee Charge", "2025-08-28", "2027-08-28", False),
         ("Jubilee Kids", "2025-08-28", "2027-08-28", False),
+    ]
+
+
+@pytest.mark.fixture_data
+def test_contract_started_by_an_app_that_later_moved_off(con):
+    # Ivory Saga started Ivory Digital's Adjust contract on 2022-08-29, then moved to Branch
+    # in 2026-07. Ivory Table and Ivory Pay (Adjust since 2022-10-07) kept the contract going,
+    # so it renewed on 2026-08-29, not on 2026-10-07.
+    rows = con.sql("""
+        select app_name, contract_start_date::varchar, next_renewal_date::varchar, is_in_renewal_window
+        from golden_apps where publisher_name = 'Ivory Digital' and current_mmp = 'Adjust'
+        order by app_name
+    """).fetchall()
+    assert rows == [
+        ("Ivory Pay", "2022-08-29", "2027-08-29", False),
+        ("Ivory Table", "2022-08-29", "2027-08-29", False),
     ]
 
 

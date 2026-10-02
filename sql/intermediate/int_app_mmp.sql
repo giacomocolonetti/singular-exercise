@@ -7,9 +7,10 @@
 --     earlier one is treated as replaced.
 --   * A switch needs at least two installs; an app's first-ever install is not a switch.
 --   * The contract belongs to the publisher, not the app ("MMP contracts run for 12 months
---     and auto-renew unless the publisher moves"). One contract per publisher x MMP, starting
---     at the earliest current install of that MMP at the publisher and renewing yearly from
---     there. An app added later joins that contract; it does not start a new one.
+--     and auto-renew unless the publisher moves"). A contract with an MMP lasts as long as
+--     the publisher has at least one app on it without a break, and renews yearly from the
+--     day that unbroken period began. An app added later joins it; an app that moves off
+--     doesn't end it while a sibling stays. Only a full gap (no app on that MMP) ends it.
 with installs as (
     select
         *,
@@ -47,12 +48,55 @@ per_app as (
     where cur.recency_rank = 1
 ),
 
-contracts as (
+-- Each period an app spent on an MMP: from its install until the app's next install
+-- (open-ended if it is still on it).
+spans as (
+    select
+        i.app_id,
+        a.publisher_id,
+        i.mmp,
+        i.install_date                                                                   as span_start,
+        coalesce(lead(i.install_date) over (partition by i.app_id order by i.install_date),
+                 date '9999-12-31')                                                      as span_end
+    from installs as i
+    join stg_app_identification as a using (app_id)
+),
+
+-- Group a publisher's periods on one MMP into unbroken stretches (one stretch = one contract):
+-- a period opens a new contract only if every earlier period on that MMP had already ended.
+contract_periods as (
     select
         *,
-        -- the publisher's contract with this MMP starts with its first app currently on it
-        min(current_mmp_install_date) over (partition by publisher_id, current_mmp) as contract_start_date
+        sum(opens_contract) over (
+            partition by publisher_id, mmp order by span_start, app_id
+        ) as contract_no
+    from (
+        select
+            *,
+            case when span_start > coalesce(max(span_end) over (
+                     partition by publisher_id, mmp order by span_start, app_id
+                     rows between unbounded preceding and 1 preceding), date '0001-01-01')
+                 then 1 else 0 end as opens_contract
+        from spans
+    )
+),
+
+current_contracts as (
+    -- the contract each app is on today = the stretch containing its open-ended period
+    select
+        cur.app_id,
+        min(p.span_start) as contract_start_date
+    from contract_periods as cur
+    join contract_periods as p
+      on p.publisher_id = cur.publisher_id and p.mmp = cur.mmp and p.contract_no = cur.contract_no
+    where cur.span_end = date '9999-12-31'
+    group by cur.app_id
+),
+
+contracts as (
+    select per_app.*, cc.contract_start_date
     from per_app
+    join current_contracts as cc using (app_id)
 ),
 
 with_renewal as (
