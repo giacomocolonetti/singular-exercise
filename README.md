@@ -223,8 +223,22 @@ two facts in **separate columns**, so neither is inferred from the other:
 
 The combination is what a rep needs. For example, 8 **existing customers ($3.6M ARR) have a
 competitor attribution contract renewing**. That is a cross-sell to someone who already pays
-us, not new business. `crm_sdk_mismatch` flags every publisher where the CRM and the SDK
-disagree, for RevOps to resolve.
+us, not new business.
+
+`crm_sdk_mismatch` gives the rep the missing context wherever the CRM and the SDK disagree.
+It also gives RevOps a list to resolve:
+
+| `crm_sdk_mismatch` | Meaning | Publishers |
+|---|---|---|
+| `customer_without_singular_sdk` | A paying customer with no app on our SDK | 42 |
+| `prospect_left_singular_sdk` | The CRM says Prospect, but an app replaced our SDK. Pitch them as a former user, not a stranger. | 6 |
+| `prospect_on_singular_sdk` | The CRM says Prospect, but they run our SDK today | 15 |
+| `churned_on_singular_sdk` | The CRM says Churned, but they still run our SDK | 4 |
+
+"Left" wins over "on". The 3 publishers that recently left our SDK still run it on another
+app, but walking away is the fact the rep needs first. For the `verify_crm_account` rows, the
+flag is checked against the probable account. Brightfin's probable account is a $408k customer
+with no app on our SDK, so it reads `customer_without_singular_sdk`.
 
 ### Data issues found and handled
 
@@ -288,8 +302,8 @@ and our outputs change with the date even when no source row changes.
   and total ARR, with an alert on a large swing.
 - **Checking that the sources agree with each other**, not just with themselves. Every source
   can be internally valid while the CRM and the product data drift apart. `crm_sdk_mismatch`
-  turns this into a tracked number: today 39 Customers have no Singular SDK, 21 Prospects and
-  4 Churned accounts run it. A jump means one side changed.
+  turns this into tracked numbers (today 42 / 6 / 15 / 4, see the table above). A jump means
+  one side changed.
 - **Freshness alerts** if a source stops updating.
 
 ## Assumptions

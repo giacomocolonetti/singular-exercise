@@ -100,12 +100,20 @@ select
     -- ("ARR of publishers using AppsFlyer"). Never SUM it across apps: it repeats.
     c.active_arr                                                as publisher_arr_repeated,
 
-    -- CRM status vs product usage disagree (publisher level): a data-quality signal for RevOps,
-    -- not an error. A Customer may buy products that need no SDK, or the CRM may be stale.
-    case
-        when c.account_type = 'Customer' and not bool_or(m.is_on_singular) over w then 'customer_without_singular_sdk'
-        when c.account_type = 'Prospect' and bool_or(m.is_on_singular) over w     then 'prospect_on_singular_sdk'
-        when c.account_type = 'Churned'  and bool_or(m.is_on_singular) over w     then 'churned_on_singular_sdk'
+    -- CRM status vs product usage disagree (publisher level): context for the rep and a
+    -- data-quality signal for RevOps, not an error. A Customer may buy products that need no
+    -- SDK, or the CRM may be stale. Uses the probable account when no account is linked yet.
+    -- "Left" comes before "on": a Prospect that just replaced our SDK on one app but still runs
+    -- it on another is above all a publisher walking away from our product.
+    case coalesce(c.account_type, c.possible_account_type)
+        when 'Customer' then case when not bool_or(m.is_on_singular) over w
+                                  then 'customer_without_singular_sdk' end
+        when 'Prospect' then case when coalesce(bool_or(m.previous_mmp = 'Singular') over w, false)
+                                  then 'prospect_left_singular_sdk'
+                                  when bool_or(m.is_on_singular) over w
+                                  then 'prospect_on_singular_sdk' end
+        when 'Churned'  then case when bool_or(m.is_on_singular) over w
+                                  then 'churned_on_singular_sdk' end
     end as crm_sdk_mismatch,
 
     -- a CRM account that is probably this publisher but isn't linked by domain: verify before calling

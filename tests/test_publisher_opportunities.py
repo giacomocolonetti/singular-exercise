@@ -88,13 +88,33 @@ def test_probable_crm_account_is_always_verified_before_calling(scalar):
 
 
 def test_crm_sdk_mismatch_follows_its_definition(scalar):
+    # recomputed independently, per publisher, from golden_apps
+    assert scalar("""
+        with pub as (
+            select publisher_id,
+                   coalesce(any_value(account_type), any_value(possible_account_type)) as crm_type,
+                   bool_or(is_on_singular)                                             as on_sdk,
+                   coalesce(bool_or(previous_mmp = 'Singular'), false)                 as left_sdk,
+                   count(distinct crm_sdk_mismatch)                                    as variants,
+                   any_value(crm_sdk_mismatch)                                         as flag
+            from golden_apps group by publisher_id)
+        select count(*) from pub
+        where variants > 1
+           or flag is distinct from case
+                when crm_type = 'Customer' and not on_sdk then 'customer_without_singular_sdk'
+                when crm_type = 'Prospect' and left_sdk   then 'prospect_left_singular_sdk'
+                when crm_type = 'Prospect' and on_sdk     then 'prospect_on_singular_sdk'
+                when crm_type = 'Churned'  and on_sdk     then 'churned_on_singular_sdk'
+              end
+    """) == 0
+
+
+def test_a_publisher_leaving_our_sdk_is_never_pitched_blind(scalar):
+    # a new-business row whose app just left the Singular SDK must carry that context
     assert scalar("""
         select count(*) from publisher_opportunities
-        where crm_sdk_mismatch is distinct from case
-            when account_type = 'Customer' and singular_app_count = 0 then 'customer_without_singular_sdk'
-            when account_type = 'Prospect' and singular_app_count > 0 then 'prospect_on_singular_sdk'
-            when account_type = 'Churned'  and singular_app_count > 0 then 'churned_on_singular_sdk'
-        end
+        where signal = 'left_singular_sdk' and sales_motion = 'new_business'
+          and crm_sdk_mismatch is distinct from 'prospect_left_singular_sdk'
     """) == 0
 
 
