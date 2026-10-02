@@ -61,28 +61,38 @@ group by all;
 
 ### 1. Ranking publishers
 
-**Decision.** Downloads, users and revenue are each summed per publisher first. Each publisher
-then gets a percentile rank on each metric (0 = smallest, 1 = largest), and the three are
-averaged into `performance_score`. The list is sorted by that score, with revenue as the
-tie-breaker.
+**Decision.** The three metrics are summed per publisher, then combined into **two signals,
+weighted 50/50**:
 
-**Why.**
-- **No single metric tells the whole story.** Downloads are the volume an MMP measures and
-  bills on. Revenue shows the budget to pay for it. Users show an active audience.
-- **Percentiles stop one big number from taking over.** Raw revenue varies 13× between the
-  median publisher and the largest, so ranking on raw values would mostly sort by revenue.
-- **Easy to explain.** "Its average position across the three metrics."
+```
+performance_score = 50% × volume + 50% × revenue
+  volume  = average percentile of downloads and users
+  revenue = percentile of revenue        (percentile: 0 = smallest on the list, 1 = largest)
+```
 
-**What it changes.** The three metrics usually agree: 9 of the top 10 are the same whichever
-one you rank by. The score matters where they disagree. Zinc House is #2 by revenue but #12 by
-downloads, so it lands at #7.
+**Why two signals, not three.** Downloads and users are almost the same number
+(correlation 0.99). Averaging three metrics would quietly count volume twice, giving it ⅔ of
+the weight. So they are averaged into one volume signal, and the weighting is stated outright.
+
+**Why 50/50.** Volume is what an MMP measures and bills on. Revenue is the budget the publisher
+has to pay for it. A good deal needs both, and no outcome data yet says which matters more.
+The weight is one parameter in `main.py` (`ranking_volume_weight`), ready to tune once won
+deals can be measured.
+
+**Why percentiles.** Raw revenue varies 13× between the median publisher and the largest, so
+raw values would let a few giants take over.
+
+**What it changes.** The metrics agree at the top (9 of the top 10 are the same as a
+revenue-only ranking). The weighting matters in the middle. Beacon Software is #10 by
+downloads but #36 by revenue. Counting volume twice put it at #14; it now sits at #21.
 
 **Considered and rejected.**
-- *Revenue only:* ignores volume.
-- *Custom weights* (e.g. 50% revenue): there is no evidence yet for any particular weights.
+- *Averaging the three metrics:* counts volume twice, as above.
+- *Revenue only:* ignores the volume an MMP actually handles.
+- *Volume only:* ignores the ability to pay.
 
-Each metric's own rank is a column (`downloads_rank`, `users_rank`, `revenue_rank`), so a rep
-can re-sort. The list is ranked by size, as the brief asks. Urgency is a filter on `signal`,
+`volume_percentile`, `revenue_percentile` and each metric's own rank are columns, so a rep can
+see why a publisher ranks where it does, or re-sort. The list is ranked by size, as the brief asks. Urgency is a filter on `signal`,
 `sales_motion` and `days_to_renewal`, not part of the score.
 
 ### 2. Duplicate CRM accounts
@@ -157,12 +167,12 @@ list, and they must be checked before anyone calls:
 
 | Rank | Publisher | Probable CRM account | Status | ARR | Owner |
 |---|---|---|---|---|---|
-| 12 | Ivory Studio | Ivory Studio Holdings | Prospect | – | Dara Nandakumar |
-| 27 | Dune Mobile | Dune Mobile Holdings | Prospect | – | Anders Costa |
-| 50 | Brightfin | Brightfin Holdings | **Customer** | **$408k** | Zara Okonkwo |
-| 93 | Indigo Systems | Indigo Systems Holdings | **Customer** | **$38k** | Viktor Costa |
-| 107 | Kiln Networks | Kiln Networks Holdings | Prospect | – | Dara Nandakumar |
-| 108 | Lantern Group | Lantern Group Holdings | Partner | – | Dara Nandakumar |
+| 11 | Ivory Studio | Ivory Studio Holdings | Prospect | – | Dara Nandakumar |
+| 25 | Dune Mobile | Dune Mobile Holdings | Prospect | – | Anders Costa |
+| 51 | Brightfin | Brightfin Holdings | **Customer** | **$408k** | Zara Okonkwo |
+| 90 | Indigo Systems | Indigo Systems Holdings | **Customer** | **$38k** | Viktor Costa |
+| 105 | Kiln Networks | Kiln Networks Holdings | Prospect | – | Dara Nandakumar |
+| 110 | Lantern Group | Lantern Group Holdings | Partner | – | Dara Nandakumar |
 
 The other four (Amber Apps, Larkspur Collective, Xenon Play, and **Ridge Company, a $657k
 Customer**) have no signal today, but carry the same columns in `golden_apps`. The rule is

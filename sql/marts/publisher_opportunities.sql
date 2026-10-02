@@ -100,18 +100,28 @@ main_mmp_renewal as (
     group by g.publisher_id
 ),
 
+percentiles as (
+    select
+        *,
+        -- Percentiles (0 = smallest, 1 = largest on the list) put metrics on one scale.
+        -- Downloads and users move together (correlation 0.99): they are one signal, volume,
+        -- so they are averaged rather than each counted as a separate vote.
+        (percent_rank() over (order by downloads)
+         + percent_rank() over (order by users)) / 2           as volume_percentile,
+        percent_rank() over (order by revenue)                  as revenue_percentile,
+        rank() over (order by downloads desc)                   as downloads_rank,
+        rank() over (order by users desc)                       as users_rank,
+        rank() over (order by revenue desc)                     as revenue_rank
+    from signals
+    where signal is not null
+),
+
 scored as (
     select
         *,
-        -- percentile ranks put the three metrics on the same 0-1 scale, so no single one dominates
-        round((percent_rank() over (order by downloads)
-             + percent_rank() over (order by users)
-             + percent_rank() over (order by revenue)) / 3, 4)  as performance_score,
-        rank() over (order by downloads desc)                    as downloads_rank,
-        rank() over (order by users desc)                        as users_rank,
-        rank() over (order by revenue desc)                      as revenue_rank
-    from signals
-    where signal is not null
+        round(getvariable('ranking_volume_weight')       * volume_percentile
+            + (1 - getvariable('ranking_volume_weight')) * revenue_percentile, 4) as performance_score
+    from percentiles
 )
 
 select
@@ -138,6 +148,8 @@ select
 
     -- how big
     s.performance_score,
+    round(s.volume_percentile, 4)   as volume_percentile,
+    round(s.revenue_percentile, 4)  as revenue_percentile,
     s.downloads,
     s.users,
     s.revenue,

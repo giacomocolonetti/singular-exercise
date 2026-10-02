@@ -128,6 +128,16 @@ def test_left_singular_sdk_only_when_an_app_left_singular(scalar):
 
 # --- ranking ---------------------------------------------------------------------------
 
+def test_score_is_the_stated_weighting_of_volume_and_revenue(scalar):
+    assert scalar("""
+        select count(*) from publisher_opportunities
+        where abs(performance_score - (getvariable('ranking_volume_weight') * volume_percentile
+                                       + (1 - getvariable('ranking_volume_weight')) * revenue_percentile)) > 0.001
+           or volume_percentile not between 0 and 1
+           or revenue_percentile not between 0 and 1
+    """) == 0
+
+
 def test_rank_is_contiguous_and_follows_the_score(con):
     ranks, scores = zip(*con.sql(
         "select rank, performance_score from publisher_opportunities order by rank"
