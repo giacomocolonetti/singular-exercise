@@ -155,9 +155,9 @@ never misled by a single label. The rule lives in one place and feeds both table
 | **Current MMP & switches** | The latest install is the current MMP. A switch needs two or more installs. | There is no uninstall date. An app's first install is a new integration, not a lost deal. |
 | **Renewal date** | The next anniversary of the current MMP's install | Contracts run 12 months and auto-renew. |
 | **"Approaching renewal"** | Within **90 days**. The window runs from `renewal_window_opens` to `next_renewal_date`. | Time to reach out and close before the contract auto-renews. |
-| **"Recently changed"** | Within **120 days** | The switch is still fresh. After that, the renewal is the next signal. |
+| **"Recently changed"** | Within **120 days** | Switches happen at about 8 a month, so this threshold mostly sets the **size** of the list (180 days gave 138 publishers, 120 gives 120). It is a capacity setting for the sales team more than a measure of signal quality. |
 | **Publisher's renewal** | The earliest renewal across its apps, with the main MMP's renewal alongside | Any open window gets a rep into the account. |
-| **Publisher's switch** | Any app switched recently. The most recent switch fills `switched_from` → `switched_to`. | One app moving shows the publisher is shopping. |
+| **Publisher's switch** | Any app switched recently. The most recent switch fills `switched_from` → `switched_to`. | One app moving shows the publisher is shopping. A switch to a competitor means a new 12-month contract was just signed, so the pitch is not to undo it. All 13 such publishers still have apps that haven't moved, and the switched app's first renewal will come round. |
 | **CRM ↔ publisher link** | Cleaned website domain first. The name is used only when the website is missing or broken. No fuzzy matching. | A wrong match sends a rep to the wrong company, which is worse than a missed match. `crm_match_method` shows how each link was made. |
 | **"Holdings" accounts** | Not linked, but shown as `possible_crm_*` on the publisher with the same name | They have their own domain, so the domain rule doesn't link them. But each one names exactly one publisher that has no CRM account ("Brightfin Holdings" ↔ "Brightfin"). Hiding that would let a rep cold-call a $408k customer. See below. |
 | **Who is on the call list** | Any publisher with a switch or renewal signal. Publishers fully on Singular appear only when renewing. | A work list, not a directory (`golden_apps` is the directory). |
@@ -286,6 +286,10 @@ and our outputs change with the date even when no source row changes.
   just made. Tests that pin known cases of the sample data are marked `fixture_data` and skipped.
 - **Comparing each run with the previous one**: row counts, the CRM match rate (76% today)
   and total ARR, with an alert on a large swing.
+- **Checking that the sources agree with each other**, not just with themselves. Every source
+  can be internally valid while the CRM and the product data drift apart. `crm_sdk_mismatch`
+  turns this into a tracked number: today 39 Customers have no Singular SDK, 21 Prospects and
+  4 Churned accounts run it. A jump means one side changed.
 - **Freshness alerts** if a source stops updating.
 
 ## Assumptions
@@ -293,7 +297,12 @@ and our outputs change with the date even when no source row changes.
 - **We are Singular,** but an app on the Singular SDK is *not* assumed to be a customer (see
   above). The commercial relationship comes from the CRM only.
 - **No uninstall date exists**, so the latest install is the current MMP.
-- **Contracts start on the install date.**
+- **Renewal dates are tracked per app, from the install date.** The brief says contracts renew
+  "unless the *publisher* moves", which suggests one contract per publisher. The data agrees:
+  when a publisher runs one MMP on several apps (179 cases), the installs all fall within 45
+  days of each other (median 18), like one contract rolled out app by app. Using each app's
+  own date, and the earliest one per publisher, puts the renewal at most 45 days off a
+  per-contract date, and 83 of the 96 competitor renewals already come from the main MMP.
 - **Performance figures cover the same period** for every app, so they can be added together.
 - **Duplicate CRM accounts are the same company**, so ARR is not added up.
 
@@ -305,8 +314,12 @@ and our outputs change with the date even when no source row changes.
 | Is 180 days right for "recently switched"? | Use 120 days | Call list went from 138 to 120 publishers |
 | Which ranking metric does sales prefer? | Judgement call | Judgement call #1 |
 | How should duplicate CRM accounts be resolved? | Judgement call | Judgement call #2 |
-| Are "Holdings" accounts parents of publishers? | Use domains as the key | Kept separate |
+| Are "Holdings" accounts parents of publishers? | Use domains as the key | Not linked, but shown as a probable account to verify (10 publishers) |
 | Can an app run two MMPs at once? | Part of the main-MMP rule | Judgement call #3 |
+
+**Still open:** why do 39 of 42 paying Customers run no Singular SDK, while 21 Prospects do?
+Until the team answers, the call list takes the relationship from the CRM only, and
+`crm_sdk_mismatch` marks every case.
 
 ## What I'd do differently with more time
 
