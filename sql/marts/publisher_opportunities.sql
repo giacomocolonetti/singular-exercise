@@ -113,6 +113,11 @@ select
     s.crm_id,
     s.crm_match_method,
     s.publisher_active_arr,
+    -- probable CRM account not linked by domain: verify before calling (see int_publisher_crm)
+    pc.possible_crm_account_name,
+    pc.possible_account_type,
+    pc.possible_account_owner,
+    pc.possible_active_arr,
 
     -- how big
     s.performance_score,
@@ -149,4 +154,5 @@ select
     getvariable('as_of_date') as as_of_date
 from scored as s
 join main_mmp_renewal as r using (publisher_id)
+join int_publisher_crm as pc using (publisher_id)
 order by rank

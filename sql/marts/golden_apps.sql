@@ -91,7 +91,13 @@ select
     c.territory,
     c.last_activity_date,
     case when a.is_publisher_primary_row then c.active_arr end  as publisher_active_arr,
-    a.is_publisher_primary_row
+    a.is_publisher_primary_row,
+
+    -- a CRM account that is probably this publisher but isn't linked by domain: verify before calling
+    c.possible_crm_id,
+    c.possible_crm_account_name,
+    c.possible_account_type,
+    c.possible_account_owner
 from apps as a
 left join int_app_mmp as m using (app_id)
 left join int_publisher_crm as c using (publisher_id)

@@ -148,9 +148,26 @@ never misled by a single label. The rule lives in one place and feeds both table
 | **Publisher's renewal** | The earliest renewal across its apps, with the main MMP's renewal alongside | Any open window gets a rep into the account. |
 | **Publisher's switch** | Any app switched recently. The most recent switch fills `switched_from` → `switched_to`. | One app moving shows the publisher is shopping. |
 | **CRM ↔ publisher link** | Cleaned website domain first. The name is used only when the website is missing or broken. No fuzzy matching. | A wrong match sends a rep to the wrong company, which is worse than a missed match. `crm_match_method` shows how each link was made. |
-| **"Holdings" accounts** | Kept separate from the publisher with the similar name | They have their own domains. Three are Customers with $1.1M ARR and no publisher behind them, flagged for RevOps rather than guessed. |
+| **"Holdings" accounts** | Not linked, but shown as `possible_crm_*` on the publisher with the same name | They have their own domain, so the domain rule doesn't link them. But each one names exactly one publisher that has no CRM account ("Brightfin Holdings" ↔ "Brightfin"). Hiding that would let a rep cold-call a $408k customer. See below. |
 | **Who is on the call list** | Any publisher with a switch or renewal signal. Publishers fully on Singular appear only when renewing. | A work list, not a directory (`golden_apps` is the directory). |
 | **No CRM account / no owner** | Kept on the list (25 publishers with no CRM account, 27 rows with no owner) | Net-new leads. The rows with no owner are the routing queue for sales ops. |
+
+**Ten publishers have a probable CRM account under a "Holdings" name.** Six are on today's call
+list, and they must be checked before anyone calls:
+
+| Rank | Publisher | Probable CRM account | Status | ARR | Owner |
+|---|---|---|---|---|---|
+| 12 | Ivory Studio | Ivory Studio Holdings | Prospect | – | Dara Nandakumar |
+| 27 | Dune Mobile | Dune Mobile Holdings | Prospect | – | Anders Costa |
+| 50 | Brightfin | Brightfin Holdings | **Customer** | **$408k** | Zara Okonkwo |
+| 93 | Indigo Systems | Indigo Systems Holdings | **Customer** | **$38k** | Viktor Costa |
+| 107 | Kiln Networks | Kiln Networks Holdings | Prospect | – | Dara Nandakumar |
+| 108 | Lantern Group | Lantern Group Holdings | Partner | – | Dara Nandakumar |
+
+The other four (Amber Apps, Larkspur Collective, Xenon Play, and **Ridge Company, a $657k
+Customer**) have no signal today, but carry the same columns in `golden_apps`. The rule is
+narrow on purpose: the names must match exactly once "Holdings" is removed, and neither side
+may already be linked. A human then confirms each pair in the CRM.
 
 **We are Singular, so the same signal means different things.** Each publisher gets one
 `opportunity_type`, the most urgent first:

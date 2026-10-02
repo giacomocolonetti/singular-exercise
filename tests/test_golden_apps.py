@@ -66,6 +66,33 @@ def test_a_crm_account_belongs_to_at_most_one_publisher(scalar):
     """) == 0
 
 
+def test_possible_crm_account_only_when_no_confirmed_one(scalar):
+    assert scalar("""
+        select count(*) from int_publisher_crm
+        where possible_crm_id is not null and crm_id is not null
+    """) == 0
+
+
+def test_possible_crm_account_is_not_used_elsewhere(scalar):
+    # never the confirmed account of another publisher, never offered to two publishers
+    assert scalar("""
+        select count(*) from int_publisher_crm as p
+        where p.possible_crm_id in (select crm_id from int_publisher_crm where crm_id is not null)
+           or p.possible_crm_id in (
+               select possible_crm_id from int_publisher_crm
+               where possible_crm_id is not null
+               group by possible_crm_id having count(*) > 1)
+    """) == 0
+
+
+def test_possible_crm_account_does_not_change_confirmed_arr(scalar):
+    # possible accounts are surfaced for review, never counted as the publisher's ARR
+    assert scalar("select sum(active_arr) from int_publisher_crm") == scalar("""
+        select sum(active_arr) from stg_crm_accounts
+        where crm_id in (select crm_id from int_publisher_crm)
+    """)
+
+
 def test_match_method_values(scalar):
     assert scalar("""
         select count(*) from golden_apps
@@ -132,6 +159,15 @@ def test_duplicate_crm_accounts_keep_arr_and_owner(con):
         from int_publisher_crm where crm_account_name like 'Petrel Studios%'
     """).fetchone()
     assert row == ("Viktor Costa", 179000, 1)
+
+
+def test_holdings_account_is_surfaced_not_merged(con):
+    # 'Brightfin Holdings' ($408k Customer) has its own domain: not linked, but shown to the rep.
+    row = con.sql("""
+        select crm_match_method, crm_id, possible_crm_account_name, possible_account_type, possible_active_arr
+        from int_publisher_crm where publisher_id = 'PUB-0009'
+    """).fetchone()
+    assert row == ("unmatched", None, "Brightfin Holdings", "Customer", 408000)
 
 
 def test_record_flagged_as_duplicate_never_wins(scalar):
