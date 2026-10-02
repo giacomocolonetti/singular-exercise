@@ -1,300 +1,245 @@
 # Singular — Publisher golden table & MMP opportunities
 
-Turns five raw source tables (product side + CRM) into tables the go-to-market team can
-query directly, without re-deriving joins.
+Turns the five raw source tables (product + CRM) into two tables the go-to-market team can
+use directly. The first is a **golden table** that answers "what do we know about this
+publisher?". The second is a **ranked call list** of publishers that recently switched MMP or
+are approaching a renewal.
+
+| | |
+|---|---|
+| Apps / publishers | 734 / 300 |
+| Publishers linked to a CRM account | 229 (76%) |
+| Publishers on today's call list | 120 |
 
 ## How to run
 
-Requires [uv](https://docs.astral.sh/uv/). SQL dialect: **DuckDB**, run against the CSVs in `data/`.
+SQL dialect: **DuckDB**, run against the CSVs in `data/`. Requires [uv](https://docs.astral.sh/uv/).
 
 ```bash
-uv run main.py   # builds output/warehouse.duckdb and exports the marts to output/*.csv
-uv run pytest    # data tests: grain, reconciliation, business rules
+uv run main.py   # builds the tables and exports them to output/*.csv
+uv run pytest    # data tests
 ```
 
-"Today" is fixed at **2026-09-14** (as the brief asks) so results are reproducible; every
-business parameter lives in `PARAMS` in `main.py`.
+"Today" is fixed at **2026-09-14**. Business thresholds live in `PARAMS` in `main.py`.
 
 ## The tables
 
-The two tables people query (marts):
+**Two tables for the business:**
 
-| Table | Grain (one line) |
+| Table | Grain |
 |---|---|
-| `golden_apps` | One row per app: identity, category, performance, MMP history, its publisher's main MMP and CRM account. |
-| `publisher_opportunities` | One row per publisher with a live signal (recent switch or renewal in window), ranked for reps to work top-down. |
+| **`golden_apps`** | One row per app, with its publisher's performance, category, MMP, CRM account and owner. |
+| **`publisher_opportunities`** | One row per publisher with a live signal (recent switch or upcoming renewal), ranked. |
 
-Both marts are also exported to `output/*.csv`, so they open directly in a spreadsheet.
+**Behind them, eight internal steps** (cleaning and shared rules; not meant to be queried directly):
 
-The building blocks behind them:
-
-| Table | Grain (one line) |
+| Table | Grain |
 |---|---|
-| `stg_app_identification` | One row per app, with its publisher and cleaned domain/name join keys. |
-| `stg_sdk_installs` | One row per app × MMP install (an app can have several over time). |
+| `stg_app_identification` | One row per app, with its publisher and cleaned matching keys. |
+| `stg_sdk_installs` | One row per app × MMP install. |
 | `stg_app_performance` | One row per app × platform (iOS / Android). |
 | `stg_app_category` | One row per app. |
-| `stg_crm_accounts` | One row per CRM account (not per company: duplicates exist here). |
-| `int_app_mmp` | One row per app: current/previous MMP, switch and next renewal. |
-| `int_publisher_crm` | One row per publisher: its matched CRM account, duplicates merged (empty if unmatched). |
+| `stg_crm_accounts` | One row per CRM account (duplicates included). |
+| `int_app_mmp` | One row per app: current and previous MMP, switch date, next renewal. |
+| `int_publisher_crm` | One row per publisher: its CRM account, duplicates merged. |
 | `int_publisher_mmp` | One row per publisher: main MMP and MMP mix. |
 
-### `golden_apps`: why one row per app
+Both main tables are also saved as CSVs in `output/`, ready to open in a spreadsheet.
+"What do we know about this publisher?" is a single query:
 
-One flat table with no joins needed: filter and aggregate it like a spreadsheet. The hard part
-is choosing a grain where **every number can be summed under any filter without double
-counting**.
-
-An app has two independent child lists: performance per platform (iOS/Android) and MMP
-installs over time. Any grain below the app that includes both multiplies rows. For example,
-app × platform × MMP counts revenue twice for the 108 apps with two MMPs, and nothing in the
-table warns you. So:
-
-| Option | Rows | Verdict |
-|---|---|---|
-| **App** (chosen) | 734 | Every measure adds up. Platform detail kept as `ios_*` / `android_*` columns; MMP history as `current_*` / `previous_*` columns plus a readable `mmp_history`. |
-| App × platform | 1,395 | Measures still add up, but "how many apps are on Adjust" needs `COUNT DISTINCT`. A spreadsheet user would get it wrong. |
-| App × MMP install | 842 | Double counts performance. Rejected. |
-
-**Pros:** easy to count (one row = one app); safe to sum; still drills down to platform level.
-**Cons:** MMP history is limited to current + previous as columns. That covers all the data
-today (max two installs per app), and `mmp_count` / `mmp_history` show when an app has more.
-A per-platform time series would need its own table.
-
-**Publisher ARR is the one number that can't be copied onto every row.** It belongs to the
-account, not the app, so repeating it would count a 6-app publisher's ARR six times in any
-pivot. `publisher_active_arr` is therefore filled only on the publisher's top app by revenue
-(`is_publisher_primary_row = true`) and is empty on its other apps. A plain `SUM` gives the
-right answer under any filter, and the flag makes it explicit which row carries the value.
-Text attributes (owner, territory, account type) do repeat on every row, because they are
-never summed.
-
-### `publisher_opportunities`: the call list
-
-A rep works an account, not an app, so this table has **one row per publisher**, and it
-is built from `golden_apps` so both tables always show the same numbers. It holds 120
-publishers today. Deciding how to represent a multi-app publisher in one row:
-
-| Question | Decision | Why |
-|---|---|---|
-| Who is on the list? | Publishers with a recent switch **or** a renewal within 90 days. A publisher entirely on Singular appears only when renewing, as `singular_renewal` | It's a work list, not a directory (`golden_apps` is the directory). A fully-Singular publisher has nothing left for sales to win, but its renewal is still worth knowing about: having the information and not using it beats not having it. Each team filters on `opportunity_type`. |
-| Main MMP | The current MMP handling the **largest share of the publisher's downloads**, then the most apps, then the most recent adoption | An MMP attributes installs, so download volume is what it handles and what it bills on. App count alone would let three tiny apps outweigh the flagship. `mmp_mix` shows the full split, e.g. `Kochava 75% (1 app), Branch 25% (3 apps)`. The rule is defined once (`int_publisher_mmp`) and also exposed for every publisher as `golden_apps.publisher_main_mmp`. |
-| Which renewal date | `next_renewal_date` = the **earliest** upcoming renewal across all the publisher's apps; `main_mmp_next_renewal_date` is kept alongside | Any open window gets a rep into the conversation. Winning one small app is how you land the account. |
-| Which switch | Any app switched within 120 days. The most recent one fills `switched_from` → `switched_to`, and `apps_switched_recently` counts them | One app moving is already a signal that the publisher is shopping. |
-| Ranking | `performance_score` = the average of the percentile ranks of downloads, users and revenue (each summed to the publisher first) | Percentiles put the three metrics on one scale, so one outlier can't dominate. Each metric's own rank is also a column, so a rep can re-sort. |
-
-**We are Singular, so the same signal means different things.** Each row gets exactly one
-`opportunity_type`, the most urgent first:
-
-| `opportunity_type` | Meaning | Who acts |
-|---|---|---|
-| `churned_from_singular` | An app recently moved **away from us** | Account manager: save it |
-| `competitor_renewal` | A competitor contract is renewing within 90 days | Sales: open window to win |
-| `switched_to_competitor` | Recently moved between competitors: evaluating, in motion | Sales |
-| `switched_to_singular` | Recently moved an app **to us**; its other apps are elsewhere | Sales: expand to the rest |
-| `singular_renewal` | Only our own apps are renewing (including publishers entirely on Singular) | Customer success: retention |
-
-Publishers with **no CRM account** (25 on the list) and **Churned** accounts stay in: they are
-net-new and win-back leads. An empty `account_owner` (27 rows) is the routing queue for sales ops.
-
-## Model layers
-
-```
-data/*.csv ──▶ staging/       type, trim and build join keys; one model per source, same grain as the source
-           ──▶ intermediate/  business logic that is reused (MMP history per app, CRM ↔ publisher match)
-           ──▶ marts/         the tables people query
+```sql
+select publisher_name, publisher_main_mmp, account_type, account_owner,
+       string_agg(distinct app_category, ', ') as categories,
+       count(*) as apps, sum(downloads) as downloads, sum(revenue) as revenue,
+       sum(publisher_active_arr) as arr, min(next_renewal_date) as next_renewal
+from golden_apps
+where publisher_name = 'Petrel Studios'
+group by all;
 ```
 
-Every model is rebuilt from scratch with `CREATE OR REPLACE TABLE` on each run, so a re-run
-can never duplicate rows.
+## Judgement calls
 
-### Staging: what gets cleaned and why
+### 1. Ranking publishers
 
-- **Explicit casts.** Sources are read as text and cast column by column, so a schema change
-  upstream fails the build loudly instead of silently changing a type.
-- **One normalisation per concept, used on both sides** (`sql/macros.sql`):
-  - `normalize_domain`: CRM websites arrive as `HTTP://COBALTPLAY.IO`, `www.x.com/`,
-    `https://x.com?utm_source=crm`, `  x.com  `. All become `x.com`. Placeholders (`N/A`,
-    `n/`, `none`) become NULL, so they can never match each other.
-  - `normalize_company_name`: lowercase, punctuation removed, `(duplicate)` and legal
-    suffixes (Inc, LLC, Ltd, GmbH, Corp) stripped. `Holdings` is kept on purpose (see matching).
-- **`sdk_installs.mmp_installed` is dropped.** It is the global install count of that MMP
-  repeated on every row (336 on every AppsFlyer row), not a per-app fact, so summing it gives
-  nonsense.
+**Decision.** Downloads, users and revenue are each summed per publisher first. Each publisher
+then gets a percentile rank on each metric (0 = smallest, 1 = largest), and the three are
+averaged into `performance_score`. The list is sorted by that score, with revenue as the
+tie-breaker.
 
-### MMP history, switches and renewals (`int_app_mmp`, one row per app)
+**Why.**
+- **No single metric tells the whole story.** Downloads are the volume an MMP measures and
+  bills on. Revenue shows the budget to pay for it. Users show an active audience.
+- **Percentiles stop one big number from taking over.** Raw revenue varies 13× between the
+  median publisher and the largest, so ranking on raw values would mostly sort by revenue.
+- **Easy to explain.** "Its average position across the three metrics."
 
-| Concept | Rule | Why |
-|---|---|---|
-| Current MMP | The app's most recent install | There is no uninstall date. 108 apps have two installs and we assume the newer one replaced the older. |
-| Switch | The app has ≥ 2 installs; switch date = latest install | An app's first-ever install is a new integration, not a lost or won deal. |
-| Next renewal | Next yearly anniversary of the current install, on or after today (and never the install day itself) | Contracts run 12 months and auto-renew. 29 Feb installs renew on 28 Feb. |
-| **Approaching renewal** | Renewal within **90 days** | Enough time to reach out, run a trial and close before the auto-renewal locks the publisher in for another year. |
-| **Recently changed** | Switch within the last **120 days** | A switcher is worked while the move is fresh: the publisher is still judging the new MMP and may still be moving its other apps. After that, the next useful signal is the renewal, which the 90-day rule catches. |
+**What it changes.** The three metrics usually agree: 9 of the top 10 are the same whichever
+one you rank by. The score matters where they disagree. Zinc House is #2 by revenue but #12 by
+downloads, so it lands at #7.
 
-Both thresholds are parameters in `main.py`.
+**Considered and rejected.**
+- *Revenue only:* ignores volume.
+- *Custom weights* (e.g. 50% revenue): there is no evidence yet for any particular weights.
 
-### Linking CRM accounts to publishers (`int_publisher_crm`, one row per publisher)
+Each metric's own rank is a column (`downloads_rank`, `users_rank`, `revenue_rank`), so a rep
+can re-sort. The list is ranked by size, as the brief asks. Urgency is a filter on
+`opportunity_type` and `days_to_renewal`, not part of the score.
 
-The CRM and the product data share no key, so each CRM account is matched in two steps:
+### 2. Duplicate CRM accounts
 
-1. **Normalised domain** (website ↔ `publisher_domain`): 216 publishers.
-2. **Normalised name** as a fallback, only for accounts that didn't match on domain (missing
-   website, or a typo such as `orbitd-ynamics.com`): 13 more publishers.
+Seven publishers have two CRM records, often disagreeing on owner or ARR. A publisher must
+appear once, so the two records are merged.
 
-`crm_match_method` (`domain` / `name` / `unmatched`) is kept as a column so users can see how
-each link was made. **71 publishers have no CRM account.** They stay in the tables with an
-empty owner: they are net-new leads, not errors.
-
-**The domain is the key.** The name fallback only fills in when
-a CRM website is missing or broken. There is **no fuzzy matching**, because pointing a rep at
-the wrong account is worse than a missed match.
-
-**"Holdings" accounts stay separate.** `Brightfin Holdings` (a Customer, $408k ARR) looks like
-publisher `Brightfin`, but it has its own domain, so under the domain key it is a different
-company. The same goes for the other "Holdings" accounts. Three of them are Customers holding
-**$1.1M ARR (8% of the total)** with no product-side publisher behind them. That is worth
-flagging to RevOps, but it is not grounds for a merge. Holdings accounts that share a domain
-with each other (`Xenon Play Holdings` / `Xenon Play Holdings LLC`) follow the same duplicate
-rule as everyone else.
-
-**Duplicate CRM accounts** (7 publishers have two records, often with conflicting owners).
-Instead of picking one record whole, each field is resolved on its own:
+**Decision.** The merge works **field by field**, instead of keeping one record and dropping
+the other:
 
 | Field | Rule | Why |
 |---|---|---|
-| `crm_id`, name, type, territory | Main record: never one a human already named "(duplicate)", then the highest status (Customer > Partner > Churned > Prospect), then the highest ARR, then the most recent activity | Keeps the record the business most likely treats as real |
-| `active_arr` | Max across the records | Same account entered twice: summing would double count |
-| `account_owner` | From the most recently worked record that has an owner | Petrel Studios: the $179k record has no owner, the other has Viktor Costa. Taking the whole record would leave a customer with no owner. |
-| `crm_duplicate_ids` | The other record ids | A ready-made merge list for RevOps |
+| Account id, name, status, territory | From the main record: the highest status (Customer > Partner > Churned > Prospect), then the highest ARR, then the most recent activity. A record someone already named "(duplicate)" never wins. | The record the business most likely treats as real. |
+| ARR | The highest of the two | It's the same company entered twice, so adding them would double count. |
+| Owner | From the most recently worked record that has an owner | Keeps the rep who is actually working the account. |
 
-## Airflow: CRM sync (`dags/crm_sync.py`)
+**Why.** Petrel Studios has a $179k record with **no owner**, and a second record owned by
+**Viktor Costa** showing $0 ARR. Keeping either record whole loses something: an owner or
+$179k. The field-by-field merge keeps both: a $179k customer owned by Viktor.
 
-A skeleton for Airflow 3; the CRM and warehouse connections are placeholders.
+**Considered and rejected.**
+- *Keep both records:* the publisher would appear twice.
+- *Pick one whole record:* loses data, as above.
+- *Sum the ARR:* double counts.
+
+The merged-away records are listed in `crm_duplicate_ids`, so RevOps has a ready-made
+clean-up list.
+
+### 3. A publisher's main MMP
+
+100 publishers use more than one MMP across their apps at the same time.
+
+**Decision.** The main MMP is the one handling the **largest share of the publisher's
+downloads**. Ties go to the MMP on the most apps, then the most recently adopted.
+
+**Why.** An MMP measures installs, so download volume is what it handles, what it bills on,
+and what a competing deal would be sized on. Counting apps instead lets several small apps
+outweigh the flagship. Harbor Dynamics runs Branch on 3 apps, but its Kochava app carries 75%
+of its downloads, so its main MMP is Kochava.
+
+**What it changes.** This rule picks a different MMP than "most apps" for 13 of the 100
+multi-MMP publishers, and a different one than "most revenue" for 12.
+
+**Considered and rejected.**
+- *Most apps:* can let small apps outweigh the flagship (Harbor Dynamics).
+- *Most revenue:* an MMP doesn't measure revenue.
+- *Most recent install:* the newest app isn't necessarily the important one.
+
+`mmp_mix` shows the full split, e.g. `Kochava 75% (1 app), Branch 25% (3 apps)`, so a rep is
+never misled by a single label. The rule lives in one place and feeds both tables
+(`golden_apps.publisher_main_mmp` and `publisher_opportunities.main_mmp`).
+
+### 4. Other decisions
+
+| Topic | Decision | Why |
+|---|---|---|
+| **Golden table grain** | One row per app. Platform figures are columns (`ios_*`, `android_*`), and MMP history is current/previous columns. | Every number adds up under any filter. A row per platform or per MMP install would double count, e.g. revenue twice for the 108 apps with two MMPs. |
+| **ARR in the golden table** | Filled only on the publisher's top app (`is_publisher_primary_row`), empty on its other apps | ARR belongs to the account. Copying it onto every app would count a 6-app publisher's ARR six times. With this rule, a plain `SUM` is always right. |
+| **Current MMP & switches** | The latest install is the current MMP. A switch needs two or more installs. | There is no uninstall date. An app's first install is a new integration, not a lost deal. |
+| **Renewal date** | The next anniversary of the current MMP's install | Contracts run 12 months and auto-renew. |
+| **"Approaching renewal"** | Within **90 days**. The window runs from `renewal_window_opens` to `next_renewal_date`. | Time to reach out and close before the contract auto-renews. |
+| **"Recently changed"** | Within **120 days** | The switch is still fresh. After that, the renewal is the next signal. |
+| **Publisher's renewal** | The earliest renewal across its apps, with the main MMP's renewal alongside | Any open window gets a rep into the account. |
+| **Publisher's switch** | Any app switched recently. The most recent switch fills `switched_from` → `switched_to`. | One app moving shows the publisher is shopping. |
+| **CRM ↔ publisher link** | Cleaned website domain first. The name is used only when the website is missing or broken. No fuzzy matching. | A wrong match sends a rep to the wrong company, which is worse than a missed match. `crm_match_method` shows how each link was made. |
+| **"Holdings" accounts** | Kept separate from the publisher with the similar name | They have their own domains. Three are Customers with $1.1M ARR and no publisher behind them, flagged for RevOps rather than guessed. |
+| **Who is on the call list** | Any publisher with a switch or renewal signal. Publishers fully on Singular appear only when renewing. | A work list, not a directory (`golden_apps` is the directory). |
+| **No CRM account / no owner** | Kept on the list (25 publishers with no CRM account, 27 rows with no owner) | Net-new leads. The rows with no owner are the routing queue for sales ops. |
+
+**We are Singular, so the same signal means different things.** Each publisher gets one
+`opportunity_type`, the most urgent first:
+
+| `opportunity_type` | Meaning | Who acts | Today |
+|---|---|---|---|
+| `churned_from_singular` | An app recently left Singular | Account manager | 3 |
+| `competitor_renewal` | A competitor contract renews within 90 days | Sales | 96 |
+| `switched_to_competitor` | Recently moved between competitors | Sales | 13 |
+| `switched_to_singular` | Moved an app to us; its other apps are elsewhere | Sales: expand | 5 |
+| `singular_renewal` | Only Singular apps are renewing | Customer success | 3 |
+
+### Data issues found and handled
+
+| Issue | Handling |
+|---|---|
+| CRM websites in many formats (`HTTP://X.IO`, `www.x.com/`, `?utm_source=crm`, `N/A`) | Normalised to a plain domain. Placeholders become empty, so they never match each other. |
+| `sdk_installs.mmp_installed` repeats each MMP's global total on every row | Dropped: summing it would be wrong. |
+| Upstream type changes | Every column is cast explicitly, so a schema change breaks the build instead of corrupting data. |
+
+## CRM sync: Airflow (`dags/crm_sync.py`)
+
+A skeleton for Airflow 3, with placeholder connections.
 
 ```
-ingestion DAGs ──asset──▶ build_marts ──asset──▶ crm_sync:  build_payload ─▶ diff_against_sync_state ─▶ chunk ─▶ push_batch ×N
+ingestion DAGs ─▶ build tables ─▶ crm_sync: build payload ─▶ keep changed accounts ─▶ push in batches
 ```
 
-**What triggers a sync, and at what grain.** Data-aware scheduling with Airflow **Assets**.
-Each ingestion DAG declares its raw table as an outlet. `build_marts` is scheduled on those
-assets and emits `golden_apps` / `publisher_opportunities`, and `crm_sync` runs when both
-marts are updated. No cron guessing: the sync runs because the data changed, and only after
-the build succeeded. The grain is **one CRM account (`crm_id`) per record**, because the CRM
-account is what a rep works. The payload covers *every* matched account, not only those on
-today's call list: when a publisher leaves the list, its CRM fields must be cleared, or the
-CRM keeps showing an expired "renewal approaching".
+- **Trigger and grain.** The sync runs when the tables are rebuilt (Airflow Assets), not on
+  a timer. It pushes one record per CRM account, covering *all* linked accounts. That way,
+  fields are cleared when a publisher leaves the call list.
+- **No duplicates on retry.** The sync only **updates** existing accounts by their CRM id and
+  never creates any, so a retry rewrites the same values. A small state table keeps a
+  fingerprint of what was last sent to each account, and only changed accounts are pushed.
+  That also catches changes caused by time passing, such as a renewal window opening.
+- **Failure halfway through.** Each batch of 200 accounts is a separate task that records its
+  success. A retry re-runs only the failed batches. If the retry fails too, the data team is
+  alerted.
+- **Reps' manual edits.** The sync writes only to its own `Product_*` fields, which are
+  read-only for reps. Fields reps own (owner, stage, notes) are never touched.
 
-**How retries avoid duplicates.** Two layers:
-1. *The CRM write is an update by `crm_id`, never an insert.* Sending the same record twice
-   writes the same values twice, which is harmless. The sync never creates accounts (the 71
-   unmatched publishers reach sales ops through the marts instead), so it cannot create
-   duplicate accounts.
-2. *`ops.crm_sync_state`* holds one row per CRM account (about 230 rows, not a copy of the
-   data) with the hash of the last payload pushed. Only records whose hash changed get
-   sent. This saves CRM API quota and avoids touching `LastModifiedDate` for nothing. It is
-   also the only way to catch changes that come from **time passing** (a renewal window
-   opening) rather than from new source rows.
-
-Why not a high watermark on the sources, the usual pattern for *ingestion*? It is right
-there (paginate by `updated_at`, oldest first, and store the watermark per table, so a broken
-run resumes where it stopped), and that is how the upstream ingestion DAGs should work. It
-doesn't fit this step: the sources are full snapshots with no `updated_at`, and our outputs
-change as dates move even when no source row does. Similarly, Iceberg `MERGE` gives
-idempotent writes *inside the lake*, but the duplicate risk here is on the CRM side. At
-this size, rebuilding the marts from scratch (`CREATE OR REPLACE`) is already idempotent.
-
-**What happens if the run fails halfway.** The push is split into **mapped tasks, one per
-batch** of 200 accounts. Each batch is all-or-none in the CRM, and only after the CRM accepts
-it does the batch write its rows to `crm_sync_state`. If batch 4 of 6 fails, Airflow retries
-only batch 4. A later full re-run skips batches 1–3 because their hashes already match. A
-task that is retried once and fails again triggers `on_failure_callback`, which alerts the
-data engineering team (Slack/pager) with a link to the logs. `max_active_runs=1` prevents
-two runs from racing.
-
-**How we avoid overwriting a rep's manual edits.** Product facts and rep judgement live in
-**separate fields**. The sync writes only its own `Product_*__c` fields (`FIELD_MAP`), which
-are read-only for reps through field-level security. The fields reps own (owner, stage,
-notes) are never in the payload, so there is nothing to overwrite. If a field ever has to be
-shared, the fallback is to read the CRM field history before pushing, and skip and flag any
-field a person edited after our last push.
+Upstream ingestion should use a high-water mark (load rows in `updated_at` order and store
+the last one loaded). That pattern doesn't fit this step: the sources have no `updated_at`,
+and our outputs change with the date even when no source row changes.
 
 ## Testing
 
-`uv run pytest` builds a fresh warehouse in a temp directory and checks the data itself, not
-just the code. Three kinds of tests:
+`uv run pytest` rebuilds everything from scratch and checks the **data**, not just the code
+(26 tests):
 
-- **Grain:** the table's key is unique, and no row is lost or invented relative to the source.
-- **Reconciliation:** totals equal the source exactly (downloads, users, revenue, ARR), per-platform
-  columns add up to the totals, and ARR sits on exactly one row per publisher. These are the tests
-  that catch a join that silently fans out.
-- **Business rules and known cases:** e.g. a single install is never a switch; APP-1001 moved
-  AppsFlyer → Adjust on 2026-07-02; Petrel Studios keeps both its $179k ARR and its owner.
-- **Completeness:** the eligible publishers are recomputed independently from `golden_apps`,
-  and every one of them must be on the call list. A filter or join that quietly drops
-  publishers fails here, even though the output still "looks fine".
+- **Grain:** an app or publisher never appears twice, and no row is lost.
+- **Totals match the source:** downloads, users, revenue and ARR add up to the same totals
+  as the source. This catches a bad join that silently multiplies rows.
+- **Completeness:** every publisher that qualifies is on the call list.
+- **Business rules and known cases:** e.g. Petrel Studios keeps its $179k and its owner.
 
-**Catching a silent break in production:**
-
-- **Tests as a gate, not a report.** The same checks run inside `build_marts` *before* it
-  emits its assets. A table that fails a test never triggers the CRM sync, so bad data never
-  reaches reps.
-- **Run-over-run checks:** row counts, the matched-CRM share (76% today), the number of
-  publishers on the call list, and total ARR, each compared with the previous run and
-  alerting on large swings. A sudden drop in the match rate usually means the CRM changed how
-  it formats websites.
-- **Freshness:** alert if a source asset hasn't updated within its expected interval, so a
-  stalled ingestion doesn't leave reps working a stale list.
-- **CI:** the build and tests run on every pull request against the committed sample data.
+**In production, a silent break would be caught by:**
+- **Running these tests before the CRM sync**, so bad data never reaches reps.
+- **Comparing each run with the previous one**: row counts, the CRM match rate (76% today)
+  and total ARR, with an alert on a large swing.
+- **Freshness alerts** if a source stops updating.
 
 ## Assumptions
 
-Where the brief was ambiguous, I decided and wrote it down here. The ones that change what a
-rep sees were also sent to the team as questions (answers below).
-
-- **We are Singular.** Singular is one of the MMPs in the data, so a Singular app is our
-  customer, not a competitor's.
-- **The latest install is the current MMP.** There is no uninstall date. Two installs = a
-  switch, not two MMPs running in parallel.
-- **Contracts start on the install date** of the current MMP and renew on its anniversary.
-- **Performance figures are comparable across apps and platforms** (same period), so they
-  can be summed across iOS and Android and across a publisher's apps.
-- **The CRM website identifies the company** and matches `publisher_domain`. The name is
-  only a fallback for missing or broken websites.
-- **Duplicate CRM accounts are the same company entered twice**, so ARR is the max, never
-  the sum.
-- **A publisher fully on Singular is not a sales lead.** It appears on the call list only
-  when renewing, labelled `singular_renewal` for customer success, and the team decides
-  what to do with it.
-- **"Today" is 2026-09-14**, and a renewal falling exactly on today is still in the window.
+- **We are Singular:** a Singular app is our customer.
+- **No uninstall date exists**, so the latest install is the current MMP.
+- **Contracts start on the install date.**
+- **Performance figures cover the same period** for every app, so they can be added together.
+- **Duplicate CRM accounts are the same company**, so ARR is not added up.
 
 ### Questions asked, and the team's answers
 
-Sent on 2026-09-30, answered by the sales lead.
-
-| # | Question | Answer | Effect |
-|---|---|---|---|
-| 1 | Is 90 days the right renewal window? | Yes, 90 days. | None: confirmed. |
-| 2 | Is 180 days right for "recently switched"? | Use a shorter cycle: 120 days. | `recent_switch_days` 180 → 120. Call list 138 → 120. |
-| 3 | Does sales prefer one ranking metric? | A judgement call, for me to make. | Kept the average percentile score (see the ranking rationale above). |
-| 4 | Is there a rule for which duplicate CRM account is real? | A judgement call, for me to make. | Kept the field-by-field merge (see the duplicates table). |
-| 5 | Are "X Holdings" accounts parents of publisher "X"? | Use domains as the key; merge same-domain accounts however I decide, as long as it's documented. | Holdings have their own domains, so they stay separate. Documented under matching. |
-| 6 | Do apps run two MMPs in parallel? | Part of the exercise (the main-MMP rule). | App level: latest install = current MMP (assumption kept). Publisher level: the main-MMP rule. |
+| Question | Answer | Effect |
+|---|---|---|
+| Is 90 days the right renewal window? | Yes | None |
+| Is 180 days right for "recently switched"? | Use 120 days | Call list went from 138 to 120 publishers |
+| Which ranking metric does sales prefer? | Judgement call | Judgement call #1 |
+| How should duplicate CRM accounts be resolved? | Judgement call | Judgement call #2 |
+| Are "Holdings" accounts parents of publishers? | Use domains as the key | Kept separate |
+| Can an app run two MMPs at once? | Part of the main-MMP rule | Judgement call #3 |
 
 ## What I'd do differently with more time
 
-- **dbt.** Move the models to dbt: tests become declarations next to each model, and lineage
-  comes for free. Most importantly for the company, dbt generates a **documentation site we
-  can self-host**, listing every table and column with its description, grain, tests and
-  lineage. Anyone in sales ops, RevOps or finance can then find what a column means without
-  asking an engineer. That's what makes self-service analytics real, not just possible.
-- **A CRM-hygiene table for RevOps:** the 21 CRM accounts that match no publisher (Holdings
-  accounts, `.example` domains), the 7 duplicate merge lists, and the 11 matched accounts
-  with no owner. Today it's a manual clean-up nobody owns.
-- **A whitespace list:** the 71 publishers with no CRM account, ranked the same way. That is
-  a prospecting list for net-new business.
-- **Daily snapshots of the call list**, so we can measure which signals actually turn into
-  won deals, and tune the 90/120-day thresholds and the ranking with data instead of intuition.
-- **At scale:** incremental models and Iceberg `MERGE` for the lake tables. Wire the real CRM
-  client, the `crm_sync_state` table and the field-history guard into the DAG, and add a
-  `build_marts` DAG that runs the tests as a gate.
+- **dbt with its self-hosted documentation site**, so anyone in the company can look up what
+  every table and column means. That's what makes self-service analytics real.
+- **A CRM clean-up list for RevOps:** the 21 CRM accounts with no publisher, the 7 duplicate
+  merges, and the 11 linked accounts with no owner.
+- **A prospecting list** of the 71 publishers with no CRM account.
+- **Daily snapshots of the call list**, to measure which signals turn into won deals and tune
+  the thresholds and the ranking with evidence.
+- **Production hardening:** incremental loads and Iceberg `MERGE` at scale, and the real CRM
+  client and state table wired into the DAG.

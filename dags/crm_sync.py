@@ -1,7 +1,7 @@
 """Push product-side facts into the CRM whenever the marts are rebuilt.
 
 Skeleton for Airflow 3 (not run here: Airflow is not a project dependency). Design
-rationale is in the README, section "Airflow: CRM sync".
+rationale is in the README, section "CRM sync: Airflow".
 
 Flow:  ingestion DAGs ──(assets)──▶ build_marts DAG ──(assets)──▶ this DAG ──▶ CRM
 
